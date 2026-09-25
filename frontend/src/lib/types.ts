@@ -54,6 +54,8 @@ export interface EdgeData extends Record<string, unknown> {
   animated: boolean;
   /** intermediate waypoints in flow coordinates */
   points: { x: number; y: number }[];
+  /** dimmed while presenting */
+  dim?: boolean;
 }
 
 export interface DiagramDoc {

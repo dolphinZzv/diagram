@@ -10,6 +10,8 @@ import { Inspector } from "@/components/editor/Inspector";
 import { SharedView } from "@/components/editor/SharedView";
 import { ShortcutsDialog } from "@/components/editor/ShortcutsDialog";
 import { CommandPalette } from "@/components/editor/CommandPalette";
+import { ImportTextDialog } from "@/components/editor/ImportTextDialog";
+import { TemplateGallery } from "@/components/editor/TemplateGallery";
 import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui";
 import { useDraftPersistence } from "@/hooks/useDraft";
@@ -99,6 +101,8 @@ function EditorApp() {
 
       <ShortcutsDialog />
       <CommandPalette />
+      <ImportTextDialog />
+      <TemplateGallery />
     </div>
   );
 }

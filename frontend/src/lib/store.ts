@@ -65,8 +65,9 @@ interface EditorState {
   lockSelected: (locked: boolean) => void;
   setNodeDimensions: (id: string, width: number, height: number) => void;
 
-  groupSelected: () => void;
+  groupSelected: (type?: "group" | "lane") => void;
   ungroupSelected: () => void;
+  addLane: () => void;
 
   bringToFront: () => void;
   sendToBack: () => void;
@@ -267,8 +268,10 @@ export const useEditor = create<EditorState>((set, get) => ({
     const sel = new Set(selectedIds);
     const selNodes = nodes.filter((n) => sel.has(n.id));
     if (selNodes.length === 0) return;
-    // Include group children so a copied group keeps its contents.
-    const groups = new Set(selNodes.filter((n) => n.type === "group").map((n) => n.id));
+    // Include group/lane children so a copied container keeps its contents.
+    const groups = new Set(
+      selNodes.filter((n) => n.type === "group" || n.type === "lane").map((n) => n.id)
+    );
     const expanded = new Set(selNodes.map((n) => n.id));
     for (const n of nodes) if (n.parentId && groups.has(n.parentId)) expanded.add(n.id);
     const copyNodes = nodes.filter((n) => expanded.has(n.id)).map((n) => ({ ...n }));
@@ -361,29 +364,44 @@ export const useEditor = create<EditorState>((set, get) => ({
     });
   },
 
-  groupSelected: () => {
+  groupSelected: (type) => {
+    const nodeType = type ?? "group";
     const { nodes, selectedIds, pushHistory } = get();
     const children = nodes.filter(
-      (n) => selectedIds.includes(n.id) && n.type !== "group" && !n.parentId
+      (n) => selectedIds.includes(n.id) && n.type !== "group" && n.type !== "lane" && !n.parentId
     );
     if (children.length === 0) return;
     pushHistory();
 
-    const pad = 28;
-    const header = 28;
     const minX = Math.min(...children.map((n) => n.position.x));
     const minY = Math.min(...children.map((n) => n.position.y));
     const maxX = Math.max(...children.map((n) => n.position.x + nodeWidth(n)));
     const maxY = Math.max(...children.map((n) => n.position.y + nodeHeight(n)));
-    const gx = minX - pad;
-    const gy = minY - pad - header;
-    const gw = maxX - minX + pad * 2;
-    const gh = maxY - minY + pad * 2 + header;
 
-    const gid = uid("g_");
+    let gx = 0;
+    let gy = 0;
+    let gw = 0;
+    let gh = 0;
+    if (nodeType === "lane") {
+      const pad = 24;
+      const titleW = 40;
+      gx = minX - pad - titleW;
+      gy = minY - pad;
+      gw = maxX - minX + pad * 2 + titleW;
+      gh = maxY - minY + pad * 2;
+    } else {
+      const pad = 28;
+      const header = 28;
+      gx = minX - pad;
+      gy = minY - pad - header;
+      gw = maxX - minX + pad * 2;
+      gh = maxY - minY + pad * 2 + header;
+    }
+
+    const gid = uid(nodeType === "lane" ? "l_" : "g_");
     const group: Node = {
       id: gid,
-      type: "group",
+      type: nodeType,
       position: { x: gx, y: gy },
       data: { label: "" },
       style: { width: gw, height: gh },
@@ -410,7 +428,9 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   ungroupSelected: () => {
     const { nodes, selectedIds, pushHistory } = get();
-    const groups = nodes.filter((n) => selectedIds.includes(n.id) && n.type === "group");
+    const groups = nodes.filter(
+      (n) => selectedIds.includes(n.id) && (n.type === "group" || n.type === "lane")
+    );
     if (groups.length === 0) return;
     pushHistory();
     const groupMap = new Map(groups.map((g) => [g.id, g]));
@@ -872,6 +892,32 @@ export const useEditor = create<EditorState>((set, get) => ({
       nodes: [
         ...nodes.map((n) => ({ ...n, selected: false })),
         { id, type: "shape", position: pos, data, style: { width: data.width, height: data.height }, selected: true },
+      ],
+      selectedIds: [id],
+      selected: id,
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  addLane: () => {
+    const { nodes, pushHistory } = get();
+    pushHistory();
+    const lanes = nodes.filter((n) => n.type === "lane");
+    const y = lanes.length
+      ? Math.max(...lanes.map((n) => n.position.y + nodeHeight(n))) + 40
+      : 0;
+    const id = uid("l_");
+    set({
+      nodes: [
+        ...nodes.map((n) => ({ ...n, selected: false })),
+        {
+          id,
+          type: "lane",
+          position: { x: 0, y },
+          data: { label: tr("inspector.laneLabel") },
+          style: { width: 720, height: 200 },
+          selected: true,
+        } as Node,
       ],
       selectedIds: [id],
       selected: id,

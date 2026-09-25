@@ -194,6 +194,7 @@ function CustomEdgeComponent({
           stroke: color,
           strokeWidth,
           strokeDasharray: dashArray(lineStyle),
+          opacity: data?.dim ? 0.12 : 1,
           animation: animated ? "dashdraw 0.5s linear infinite" : undefined,
         }}
       />

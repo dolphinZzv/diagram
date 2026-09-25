@@ -28,11 +28,11 @@ export function normalizeNodes(raw: unknown[]): Node[] {
     const id = node.id ?? uid("n_");
     const position = node.position ?? { x: 0, y: 0 };
 
-    if (node.type === "group") {
+    if (node.type === "group" || node.type === "lane") {
       return {
         ...node,
         id,
-        type: "group",
+        type: node.type,
         position,
         data: { label: (node.data?.label as string) ?? "" },
         style: node.style ?? {},
@@ -69,8 +69,8 @@ export function normalizeNodes(raw: unknown[]): Node[] {
   // React Flow requires parent (group) nodes to appear before their children.
   const order = new Map(list.map((n, i) => [n.id, i]));
   return list.sort((a, b) => {
-    const ag = a.type === "group" ? 0 : 1;
-    const bg = b.type === "group" ? 0 : 1;
+    const ag = a.type === "group" || a.type === "lane" ? 0 : 1;
+    const bg = b.type === "group" || b.type === "lane" ? 0 : 1;
     if (ag !== bg) return ag - bg;
     return (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0);
   });

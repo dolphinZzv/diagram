@@ -655,7 +655,7 @@ function MultiInspector() {
             <Separator />
             <Row label={t("inspector.group")}>
               <div className="grid grid-cols-2 gap-1">
-                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={groupSelected}>
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={() => groupSelected()}>
                   <Group className="h-3.5 w-3.5" /> {t("inspector.group")}
                 </Button>
                 <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={ungroupSelected}>

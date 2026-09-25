@@ -9,6 +9,7 @@ import {
   SelectionMode,
   useReactFlow,
   type Node,
+  type Edge,
   type NodeChange,
   type EdgeChange,
   type OnSelectionChangeParams,
@@ -36,6 +37,7 @@ import {
   Palette as PaletteIcon,
   Send,
   Sparkles,
+  Play,
 } from "lucide-react";
 import { nodeTypes, edgeTypes } from "./flow-types";
 import { useEditor } from "@/lib/store";
@@ -54,6 +56,7 @@ import { toast } from "@/lib/toast";
 import { ContextMenu, type CtxItem } from "./ContextMenu";
 import { ActionSheet } from "./ActionSheet";
 import { SequenceMessageDialog } from "./SequenceMessageDialog";
+import { PresentationBar } from "./PresentationBar";
 import { HelperLines } from "./HelperLines";
 import { EmptyState } from "./EmptyState";
 
@@ -76,6 +79,44 @@ function nodeSize(n: Node): { w: number; h: number } {
 
 type MenuState = { x: number; y: number; kind: "node" | "edge" | "pane"; id?: string } | null;
 
+/** Order for presentation mode: topological, tie-broken by position. */
+function presentationOrder(nodes: Node[], edges: Edge[]): string[] {
+  const ids = new Set(nodes.filter((n) => n.type !== "group").map((n) => n.id));
+  const indeg = new Map<string, number>();
+  const adj = new Map<string, string[]>();
+  ids.forEach((id) => {
+    indeg.set(id, 0);
+    adj.set(id, []);
+  });
+  for (const e of edges) {
+    if (!ids.has(e.source) || !ids.has(e.target)) continue;
+    adj.get(e.source)!.push(e.target);
+    indeg.set(e.target, (indeg.get(e.target) ?? 0) + 1);
+  }
+  const posOf = (id: string) => nodes.find((n) => n.id === id)?.position ?? { x: 0, y: 0 };
+  const cmp = (a: string, b: string) => {
+    const pa = posOf(a);
+    const pb = posOf(b);
+    return pa.y - pb.y || pa.x - pb.x;
+  };
+  const queue = [...ids].filter((id) => (indeg.get(id) ?? 0) === 0).sort(cmp);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    for (const nx of adj.get(id) ?? []) {
+      indeg.set(nx, (indeg.get(nx) ?? 1) - 1);
+      if ((indeg.get(nx) ?? 0) <= 0) queue.push(nx);
+    }
+    queue.sort(cmp);
+  }
+  for (const id of [...ids].sort(cmp)) if (!seen.has(id)) out.push(id);
+  return out;
+}
+
 export function Canvas() {
   const nodes = useEditor((s) => s.nodes);
   const edges = useEditor((s) => s.edges);
@@ -92,7 +133,7 @@ export function Canvas() {
   const selectMode = useUi((s) => s.selectMode);
   const compact = isCompactLayout();
 
-  const { screenToFlowPosition, getZoom, fitView, zoomTo } = useReactFlow();
+  const { screenToFlowPosition, getZoom, fitView, zoomTo, setCenter } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const [menu, setMenu] = useState<MenuState>(null);
@@ -358,6 +399,7 @@ export function Canvas() {
         "separator",
         { label: t("ctx.group"), icon: <GroupIcon className="h-4 w-4" />, shortcut: "Ctrl G", onClick: () => { s.groupSelected(); } },
         { label: t("ctx.ungroup"), icon: <UngroupIcon className="h-4 w-4" />, disabled: !hasGroup, onClick: () => s.ungroupSelected() },
+        { label: t("command.laneGroup"), icon: <GroupIcon className="h-4 w-4" />, onClick: () => s.groupSelected("lane") },
         "separator",
         { label: t("mindmap.addChild"), icon: <CornerDownRight className="h-4 w-4" />, shortcut: "Tab", onClick: () => { select(); s.addChildNode(id); } },
         { label: t("mindmap.addSibling"), icon: <Plus className="h-4 w-4" />, shortcut: "Enter", onClick: () => { select(); s.addSiblingNode(id); } },
@@ -398,6 +440,7 @@ export function Canvas() {
           if (compact) useUi.getState().setInspectorOpen(true);
         },
       },
+      { label: t("command.addLane"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addLane() },
       "separator",
       { label: t("command.autoLayoutTB"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("TB") },
       { label: t("command.autoLayoutLR"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("LR") },
@@ -418,6 +461,22 @@ export function Canvas() {
         onClick: async () => {
           const ok = await copyText(toMermaid(s.nodes, s.edges));
           if (ok) toast.success(t("share.linkCopied"));
+        },
+      },
+      "separator",
+      {
+        label: t("present.start"),
+        icon: <Play className="h-4 w-4" />,
+        onClick: () => {
+          const order = presentationOrder(s.nodes, s.edges);
+          if (order.length === 0) return;
+          useUi.getState().startPresentation(order);
+          const first = s.nodes.find((n) => n.id === order[0]);
+          if (first) {
+            const w = (first.style?.width as number) || (first.data as { width?: number }).width || 120;
+            const h = (first.style?.height as number) || (first.data as { height?: number }).height || 60;
+            setCenter(first.position.x + w / 2, first.position.y + h / 2, { zoom: 1.3, duration: 400 });
+          }
         },
       },
       "separator",
@@ -452,6 +511,27 @@ export function Canvas() {
   );
   const actionSheet = useUi((s) => s.actionSheet);
   const closeActionSheet = useUi((s) => s.closeActionSheet);
+  const presentation = useUi((s) => s.presentation);
+
+  const displayNodes = useMemo(() => {
+    if (!presentation.active) return nodes;
+    const visited = new Set(presentation.order.slice(0, presentation.index + 1));
+    const current = presentation.order[presentation.index];
+    return nodes.map((n) => ({
+      ...n,
+      style: { ...n.style, opacity: n.type === "group" || visited.has(n.id) ? 1 : 0.12 },
+      className: n.id === current ? "ring-2 ring-primary ring-offset-2" : undefined,
+    }));
+  }, [nodes, presentation]);
+
+  const displayEdges = useMemo(() => {
+    if (!presentation.active) return edges;
+    const visited = new Set(presentation.order.slice(0, presentation.index + 1));
+    return edges.map((e) => ({
+      ...e,
+      data: { ...e.data, dim: !visited.has(e.source) },
+    }));
+  }, [edges, presentation]);
 
   const showEmpty = nodes.length === 0 && edges.length === 0;
 
@@ -464,8 +544,8 @@ export function Canvas() {
       onPointerDown={startLongPress}
     >
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={displayNodes}
+        edges={displayEdges}
         onNodesChange={onNodesChange as (c: NodeChange<Node>[]) => void}
         onEdgesChange={onEdgesChange as (c: EdgeChange[]) => void}
         onConnect={onConnect}
@@ -543,6 +623,8 @@ export function Canvas() {
       ) : null}
 
       <SequenceMessageDialog />
+
+      <PresentationBar />
     </div>
   );
 }

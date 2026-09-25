@@ -199,4 +199,70 @@ export const TEMPLATES: Template[] = [
       ],
     }),
   },
+  {
+    id: "k8s",
+    name: "Kubernetes",
+    description: "Ingress / Service / Pod / 存储",
+    build: () => ({
+      nodes: [
+        node("k-ing", -60, 0, { shape: "hexagon", label: "Ingress", fill: "#ede9fe", stroke: "#7c3aed", textColor: "#5b21b6", width: 130, height: 70 }),
+        node("k-svc", 160, 0, { shape: "rounded", label: "Service", fill: "#e0f2fe", stroke: "#0284c7", textColor: "#075985", width: 120, height: 60 }),
+        node("k-pod1", 380, -80, { shape: "rounded", label: "Pod A", fill: "#dcfce7", stroke: "#16a34a", textColor: "#166534", width: 110, height: 56 }),
+        node("k-pod2", 380, 30, { shape: "rounded", label: "Pod B", fill: "#dcfce7", stroke: "#16a34a", textColor: "#166534", width: 110, height: 56 }),
+        node("k-cm", 380, 150, { shape: "document", label: "ConfigMap", fill: "#fef3c7", stroke: "#d97706", textColor: "#92400e", width: 110, height: 90 }),
+        node("k-pvc", 620, -80, { shape: "cylinder", label: "PVC", fill: "#fef3c7", stroke: "#d97706", textColor: "#92400e", width: 100, height: 100 }),
+        node("k-sa", 620, 110, { shape: "ellipse", label: "ServiceAccount", fill: "#fee2e2", stroke: "#dc2626", textColor: "#991b1b", width: 140, height: 80 }),
+      ],
+      edges: [
+        edge("ke-1", "k-ing", "k-svc", { sourceHandle: "r", targetHandle: "l" }),
+        edge("ke-2", "k-svc", "k-pod1", { sourceHandle: "r", targetHandle: "l" }),
+        edge("ke-3", "k-svc", "k-pod2", { sourceHandle: "r", targetHandle: "l" }),
+        edge("ke-4", "k-svc", "k-cm", { sourceHandle: "b", targetHandle: "t", lineStyle: "dashed" }),
+        edge("ke-5", "k-pod1", "k-pvc", { sourceHandle: "r", targetHandle: "l" }),
+        edge("ke-6", "k-pod2", "k-sa", { sourceHandle: "r", targetHandle: "l", lineStyle: "dashed" }),
+      ],
+    }),
+  },
+  {
+    id: "er",
+    name: "ER 图",
+    description: "实体关系模型",
+    build: () => ({
+      nodes: [
+        node("er-user", 0, 0, { shape: "rect", label: "User\nid / name / email", fill: "#e0f2fe", stroke: "#0284c7", textColor: "#075985", width: 170, height: 90 }),
+        node("er-order", 320, -60, { shape: "rect", label: "Order\nid / userId / total", fill: "#dcfce7", stroke: "#16a34a", textColor: "#166534", width: 170, height: 90 }),
+        node("er-item", 640, -60, { shape: "rect", label: "OrderItem\nid / orderId / qty", fill: "#fef3c7", stroke: "#d97706", textColor: "#92400e", width: 170, height: 90 }),
+        node("er-prod", 640, 120, { shape: "rect", label: "Product\nid / name / price", fill: "#ede9fe", stroke: "#7c3aed", textColor: "#5b21b6", width: 170, height: 90 }),
+      ],
+      edges: [
+        edge("ere-1", "er-user", "er-order", { sourceHandle: "r", targetHandle: "l", label: "1 : n" }),
+        edge("ere-2", "er-order", "er-item", { sourceHandle: "r", targetHandle: "l", label: "1 : n" }),
+        edge("ere-3", "er-prod", "er-item", { sourceHandle: "t", targetHandle: "b", label: "1 : n" }),
+      ],
+    }),
+  },
+  {
+    id: "org",
+    name: "组织架构",
+    description: "公司 / 部门 / 团队",
+    build: () => ({
+      nodes: [
+        node("o-ceo", 260, 0, { shape: "rounded", label: "CEO", fill: "#ede9fe", stroke: "#7c3aed", textColor: "#5b21b6", width: 130, height: 60 }),
+        node("o-cto", 40, 140, { shape: "rounded", label: "CTO", fill: "#e0f2fe", stroke: "#0284c7", textColor: "#075985", width: 120, height: 56 }),
+        node("o-cfo", 260, 140, { shape: "rounded", label: "CFO", fill: "#dcfce7", stroke: "#16a34a", textColor: "#166534", width: 120, height: 56 }),
+        node("o-coo", 480, 140, { shape: "rounded", label: "COO", fill: "#fef3c7", stroke: "#d97706", textColor: "#92400e", width: 120, height: 56 }),
+        node("o-fe", -80, 280, { shape: "rect", label: "前端团队", fill: "#f8fafc", stroke: "#94a3b8", width: 120, height: 50 }),
+        node("o-be", 80, 280, { shape: "rect", label: "后端团队", fill: "#f8fafc", stroke: "#94a3b8", width: 120, height: 50 }),
+        node("o-ops", 440, 280, { shape: "rect", label: "运维团队", fill: "#f8fafc", stroke: "#94a3b8", width: 120, height: 50 }),
+      ],
+      edges: [
+        edge("oe-1", "o-ceo", "o-cto", { sourceHandle: "l", targetHandle: "t" }),
+        edge("oe-2", "o-ceo", "o-cfo", { sourceHandle: "b", targetHandle: "t" }),
+        edge("oe-3", "o-ceo", "o-coo", { sourceHandle: "r", targetHandle: "t" }),
+        edge("oe-4", "o-cto", "o-fe", { sourceHandle: "b", targetHandle: "t" }),
+        edge("oe-5", "o-cto", "o-be", { sourceHandle: "b", targetHandle: "t" }),
+        edge("oe-6", "o-coo", "o-ops", { sourceHandle: "b", targetHandle: "t" }),
+      ],
+    }),
+  },
 ];

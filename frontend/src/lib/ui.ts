@@ -27,6 +27,18 @@ interface UiState {
   /** Command palette (Ctrl/⌘+K). */
   commandOpen: boolean;
   setCommandOpen: (v: boolean) => void;
+  /** Presentation (walk-through) mode. */
+  presentation: { active: boolean; index: number; order: string[] };
+  startPresentation: (order: string[]) => void;
+  stopPresentation: () => void;
+  presentationNext: () => void;
+  presentationPrev: () => void;
+  /** Text import (Mermaid / PlantUML) dialog. */
+  importOpen: boolean;
+  setImportOpen: (v: boolean) => void;
+  /** Template gallery dialog. */
+  templateGalleryOpen: boolean;
+  setTemplateGalleryOpen: (v: boolean) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -48,6 +60,22 @@ export const useUi = create<UiState>((set) => ({
   toggleSketch: () => set({ sketch: !useUi.getState().sketch }),
   commandOpen: false,
   setCommandOpen: (v) => set({ commandOpen: v }),
+  presentation: { active: false, index: 0, order: [] },
+  startPresentation: (order) => set({ presentation: { active: true, index: 0, order } }),
+  stopPresentation: () => set({ presentation: { active: false, index: 0, order: [] } }),
+  presentationNext: () =>
+    set((s) => ({
+      presentation: {
+        ...s.presentation,
+        index: Math.min(s.presentation.index + 1, s.presentation.order.length - 1),
+      },
+    })),
+  presentationPrev: () =>
+    set((s) => ({ presentation: { ...s.presentation, index: Math.max(s.presentation.index - 1, 0) } })),
+  importOpen: false,
+  setImportOpen: (v) => set({ importOpen: v }),
+  templateGalleryOpen: false,
+  setTemplateGalleryOpen: (v) => set({ templateGalleryOpen: v }),
 }));
 
 /** True on phones / tablets where the editor uses drawers. */

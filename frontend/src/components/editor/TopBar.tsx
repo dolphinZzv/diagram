@@ -111,8 +111,7 @@ export function TopBar() {
     setTimeout(() => fitView({ padding: 0.3 }), 30);
   }, [meta.saved, loadDoc, setMeta, fitView, t]);
 
-  const onApplyTemplate = useCallback(
-    (id: string) => {
+  const onApplyTemplate = useCallback(    (id: string) => {
       const tpl = TEMPLATES.find((x) => x.id === id);
       if (!tpl) return;
       if (!meta.saved && !confirm(t("topbar.confirmTemplate"))) return;
@@ -255,6 +254,10 @@ export function TopBar() {
                 </div>
               </DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => useUi.getState().setTemplateGalleryOpen(true)}>
+              <LayoutTemplate className="h-4 w-4" /> {t("topbar.browseTemplates")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -264,9 +267,21 @@ export function TopBar() {
         <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenShare(true)}>
           <Share2 className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.share")}</span>
         </Button>
-        <Button variant="ghost" size="sm" className="h-8" onClick={() => fileInput.current?.click()}>
-          <Upload className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.import")}</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8">
+              <Upload className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.import")}</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => fileInput.current?.click()}>
+              <FileJson className="h-4 w-4" /> {t("topbar.importFile")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => useUi.getState().setImportOpen(true)}>
+              <FileCode2 className="h-4 w-4" /> {t("topbar.importText")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -378,7 +393,10 @@ export function TopBar() {
               <Share2 className="h-4 w-4" /> {t("topbar.share")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => fileInput.current?.click()}>
-              <Upload className="h-4 w-4" /> {t("topbar.import")}
+              <Upload className="h-4 w-4" /> {t("topbar.importFile")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => useUi.getState().setImportOpen(true)}>
+              <FileCode2 className="h-4 w-4" /> {t("topbar.importText")}
             </DropdownMenuItem>
 
             <DropdownMenuSub>
@@ -391,6 +409,10 @@ export function TopBar() {
                     {t(`template.${tpl.id}.name`)}
                   </DropdownMenuItem>
                 ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => useUi.getState().setTemplateGalleryOpen(true)}>
+                  <LayoutTemplate className="h-4 w-4" /> {t("topbar.browseTemplates")}
+                </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
 

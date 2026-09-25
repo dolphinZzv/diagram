@@ -76,6 +76,8 @@ export function CommandPalette() {
       add(t("command.actions"), t("command.autoLayoutTB"), () => s.autoLayout("TB")),
       add(t("command.actions"), t("command.autoLayoutLR"), () => s.autoLayout("LR")),
       add(t("command.actions"), t("command.mindMap"), () => s.mindMapLayout()),
+      add(t("command.actions"), t("command.laneGroup"), () => s.groupSelected("lane")),
+      add(t("command.actions"), t("command.addLane"), () => s.addLane()),
       add(t("command.actions"), t("command.beautify"), () => s.beautify("ocean")),
       add(t("command.actions"), t("command.sketch"), () => toggleSketch()),
       add(t("command.actions"), t("seq.addParticipant"), () => s.addParticipant()),
@@ -85,6 +87,12 @@ export function CommandPalette() {
       }),
       add(t("command.actions"), t("ctx.fitView"), () => fitView({ padding: 0.25 })),
       add(t("command.actions"), t("ctx.zoomReset"), () => zoomTo(1)),
+      add(t("command.templates"), t("topbar.browseTemplates"), () => useUi.getState().setTemplateGalleryOpen(true)),
+      add(t("command.actions"), t("import.title"), () => useUi.getState().setImportOpen(true)),
+      add(t("command.actions"), t("present.start"), () => {
+        const order = s.nodes.filter((n) => n.type !== "group").map((n) => n.id);
+        if (order.length) useUi.getState().startPresentation(order);
+      }),
       add(t("command.actions"), t("topbar.exportPng"), () => {
         void exportPNG(s.nodes, s.edges, s.meta.name || "diagram", theme);
       }),
