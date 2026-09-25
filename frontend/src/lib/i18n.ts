@@ -47,6 +47,8 @@ const zh: Dict = {
   "palette.basic": "基础形状",
   "palette.arch": "架构组件",
   "palette.hint": "拖拽到画布，或点击直接添加",
+  "toolbar.selectMode": "多选",
+  "toolbar.selectModeHint": "开启后拖拽画布可框选多个图形，再批量操作",
   "palette.addTitle": "添加图形",
 
   // shape names
@@ -306,6 +308,10 @@ const zh: Dict = {
   // draft
   "draft.restoredTitle": "已恢复未保存的内容",
   "draft.restoredDesc": "检测到上次未保存的草稿，已为你恢复。",
+
+  "editor.copied": "已复制图形",
+  "shortcut.longPress": "长按图形复制",
+  "shortcut.doubleTap": "双击图形打开属性",
 };
 
 const en: Dict = {
@@ -348,6 +354,8 @@ const en: Dict = {
   "palette.basic": "Basic shapes",
   "palette.arch": "Architecture",
   "palette.hint": "Drag onto the canvas, or click to add",
+  "toolbar.selectMode": "Select",
+  "toolbar.selectModeHint": "When on, drag the canvas to marquee-select multiple shapes, then edit them in bulk",
   "palette.addTitle": "Add shape",
 
   "shape.rect": "Rectangle",
@@ -596,6 +604,10 @@ const en: Dict = {
 
   "draft.restoredTitle": "Unsaved work restored",
   "draft.restoredDesc": "We found an unsaved draft from your last session and restored it.",
+
+  "editor.copied": "Shape copied",
+  "shortcut.longPress": "Long-press a shape to copy",
+  "shortcut.doubleTap": "Double-tap a shape to edit",
 };
 
 const dicts: Record<Lang, Dict> = { zh, en };

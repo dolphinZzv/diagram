@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "diagram": {
+      "command": "diagram",
+      "args": ["mcp"],
+      "env": {
+        "DIAGRAM_DB": "/Users/me/.diagram/diagram.db"
+      }
+    }
+  }
+}

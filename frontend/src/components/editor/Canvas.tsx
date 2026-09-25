@@ -6,6 +6,7 @@ import {
   Controls,
   MiniMap,
   ConnectionMode,
+  SelectionMode,
   useReactFlow,
   type Node,
   type NodeChange,
@@ -20,6 +21,7 @@ import { defaultNodeData, type ShapeType } from "@/lib/types";
 import { uid } from "@/lib/id";
 import { useTheme, canvasColors } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
+import { isCompactLayout, useUi } from "@/lib/ui";
 
 export function Canvas() {
   const nodes = useEditor((s) => s.nodes);
@@ -33,6 +35,8 @@ export function Canvas() {
   const theme = useTheme((s) => s.theme);
   const colors = canvasColors(theme);
   const t = useT();
+  const selectMode = useUi((s) => s.selectMode);
+  const compact = isCompactLayout();
 
   const { screenToFlowPosition } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -86,6 +90,32 @@ export function Canvas() {
     [setSelection]
   );
 
+  // On compact (touch) layouts, a double-tap on a node/edge opens the
+  // properties drawer. React Flow's dblclick is unreliable on touch, so we
+  // also detect two quick taps ourselves.
+  const openInspector = useCallback(
+    (id: string) => {
+      setSelection([id]);
+      if (isCompactLayout()) useUi.getState().setInspectorOpen(true);
+    },
+    [setSelection]
+  );
+
+  const lastTap = useRef<{ id: string; t: number } | null>(null);
+  const handleTap = useCallback(
+    (id: string) => {
+      const now = Date.now();
+      const prev = lastTap.current;
+      if (prev && prev.id === id && now - prev.t < 320) {
+        lastTap.current = null;
+        openInspector(id);
+        return;
+      }
+      lastTap.current = { id, t: now };
+    },
+    [openInspector]
+  );
+
   return (
     <div ref={wrapperRef} className="h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
       <ReactFlow
@@ -95,14 +125,24 @@ export function Canvas() {
         onEdgesChange={onEdgesChange as (c: EdgeChange[]) => void}
         onConnect={onConnect}
         onSelectionChange={onSelectionChange}
+        onNodeClick={(_, n) => handleTap(n.id)}
+        onEdgeClick={(_, e) => handleTap(e.id)}
+        onNodeDoubleClick={(_, n) => openInspector(n.id)}
+        onEdgeDoubleClick={(_, e) => openInspector(e.id)}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
+        selectionOnDrag={compact ? selectMode : true}
+        panOnDrag={compact ? !selectMode : [1, 2]}
+        panActivationKeyCode="Space"
+        panOnScroll={!compact}
+        selectionMode={SelectionMode.Partial}
         fitView
         fitViewOptions={{ padding: 0.3 }}
         snapToGrid
         snapGrid={[10, 10]}
         deleteKeyCode={null}
+        zoomOnDoubleClick={false}
         multiSelectionKeyCode={["Meta", "Control", "Shift"]}
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}

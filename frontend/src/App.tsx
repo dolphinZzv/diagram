@@ -1,6 +1,5 @@
-import { useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { LayoutGrid, SlidersHorizontal } from "lucide-react";
+import { LayoutGrid, SlidersHorizontal, SquareDashed } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -11,14 +10,19 @@ import { Inspector } from "@/components/editor/Inspector";
 import { SharedView } from "@/components/editor/SharedView";
 import { ShortcutsDialog } from "@/components/editor/ShortcutsDialog";
 import { useT } from "@/lib/i18n";
+import { useUi } from "@/lib/ui";
 import { useDraftPersistence } from "@/hooks/useDraft";
 import { Toaster } from "@/components/Toaster";
 
 function EditorApp() {
   const t = useT();
   useDraftPersistence();
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const paletteOpen = useUi((s) => s.paletteOpen);
+  const setPaletteOpen = useUi((s) => s.setPaletteOpen);
+  const inspectorOpen = useUi((s) => s.inspectorOpen);
+  const setInspectorOpen = useUi((s) => s.setInspectorOpen);
+  const selectMode = useUi((s) => s.selectMode);
+  const setSelectMode = useUi((s) => s.setSelectMode);
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-muted/20">
@@ -39,10 +43,19 @@ function EditorApp() {
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
         <div className="pointer-events-auto flex gap-1.5 rounded-full border bg-background/95 p-1.5 shadow-lg backdrop-blur">
           <Button size="sm" className="rounded-full" onClick={() => setPaletteOpen(true)}>
-            <LayoutGrid className="h-4 w-4" /> 添加图形
+            <LayoutGrid className="h-4 w-4" /> {t("palette.addTitle")}
+          </Button>
+          <Button
+            size="sm"
+            variant={selectMode ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => setSelectMode(!selectMode)}
+            title={t("toolbar.selectModeHint")}
+          >
+            <SquareDashed className="h-4 w-4" /> {t("toolbar.selectMode")}
           </Button>
           <Button size="sm" variant="outline" className="rounded-full" onClick={() => setInspectorOpen(true)}>
-            <SlidersHorizontal className="h-4 w-4" /> 属性
+            <SlidersHorizontal className="h-4 w-4" /> {t("inspector.panelTitle")}
           </Button>
         </div>
       </div>

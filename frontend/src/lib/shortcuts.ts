@@ -32,6 +32,13 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     ],
   },
   {
+    titleKey: "shortcut.groupTouch",
+    items: [
+      { keys: ["Double-tap"], labelKey: "shortcut.doubleTap" },
+      { keys: ["Long press"], labelKey: "shortcut.longPress" },
+    ],
+  },
+  {
     titleKey: "shortcut.groupArrange",
     items: [
       { keys: ["Ctrl", "G"], labelKey: "shortcut.group" },
