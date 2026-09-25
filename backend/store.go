@@ -1,0 +1,127 @@
+package main
+
+import (
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+
+	_ "modernc.org/sqlite"
+)
+
+var errNotFound = errors.New("not found")
+
+// Diagram is a single saved document. Data holds the editor payload in the
+// same JSON shape the editor imports/exports (nodes/edges/viewport).
+type Diagram struct {
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Data        json.RawMessage `json:"data"`
+	CreatedAt   string          `json:"createdAt"`
+	UpdatedAt   string          `json:"updatedAt"`
+}
+
+type Store struct {
+	db *sql.DB
+}
+
+func NewStore(path string) (*Store, error) {
+	if dir := filepath.Dir(path); dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, err
+		}
+	}
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1) // sqlite: serialize writes, avoid locks
+
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS diagrams (
+			id          TEXT PRIMARY KEY,
+			name        TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			data        TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
+			created_at  TEXT NOT NULL,
+			updated_at  TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_diagrams_updated ON diagrams(updated_at DESC);
+	`); err != nil {
+		return nil, err
+	}
+	return &Store{db: db}, nil
+}
+
+func (s *Store) Close() error { return s.db.Close() }
+
+func (s *Store) List() ([]Diagram, error) {
+	rows, err := s.db.Query(`SELECT id, name, description, data, created_at, updated_at FROM diagrams ORDER BY updated_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Diagram{}
+	for rows.Next() {
+		var d Diagram
+		var data string
+		if err := rows.Scan(&d.ID, &d.Name, &d.Description, &data, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			return nil, err
+		}
+		d.Data = json.RawMessage(data)
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) Get(id string) (Diagram, error) {
+	var d Diagram
+	var data string
+	err := s.db.QueryRow(`SELECT id, name, description, data, created_at, updated_at FROM diagrams WHERE id = ?`, id).
+		Scan(&d.ID, &d.Name, &d.Description, &data, &d.CreatedAt, &d.UpdatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return d, errNotFound
+	}
+	if err != nil {
+		return d, err
+	}
+	d.Data = json.RawMessage(data)
+	return d, nil
+}
+
+func (s *Store) Create(d Diagram) error {
+	_, err := s.db.Exec(
+		`INSERT INTO diagrams (id, name, description, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		d.ID, d.Name, d.Description, string(d.Data), d.CreatedAt, d.UpdatedAt,
+	)
+	return err
+}
+
+func (s *Store) Update(d Diagram) error {
+	res, err := s.db.Exec(
+		`UPDATE diagrams SET name = ?, description = ?, data = ?, updated_at = ? WHERE id = ?`,
+		d.Name, d.Description, string(d.Data), d.UpdatedAt, d.ID,
+	)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return errNotFound
+	}
+	return nil
+}
+
+func (s *Store) Delete(id string) error {
+	res, err := s.db.Exec(`DELETE FROM diagrams WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return errNotFound
+	}
+	return nil
+}

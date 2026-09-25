@@ -1,0 +1,29 @@
+# Build artifacts
+/bin/
+/dist/
+
+# Go
+backend/dist/*
+!backend/dist/index.html
+*.test
+*.out
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+npm-debug.log*
+pnpm-debug.log*
+
+# Data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.diagram/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
