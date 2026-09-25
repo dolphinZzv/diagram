@@ -47,13 +47,21 @@ func writeErr(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
-// corsMiddleware is only relevant during local development where the Vite
-// dev server runs on a different port than the API.
+// corsMiddleware adds CORS headers only when DIAGRAM_ALLOW_ORIGIN is set.
+// By default the app is served same-origin by the embedded frontend, so no
+// cross-origin headers are required.
 func corsMiddleware(next http.Handler) http.Handler {
+	allow := os.Getenv("DIAGRAM_ALLOW_ORIGIN")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		if allow != "" {
+			w.Header().Set("Access-Control-Allow-Origin", allow)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set("Vary", "Origin")
+			if allow != "*" {
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+			}
+		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -108,6 +116,12 @@ func main() {
 	if os.Getenv("DIAGRAM_TOKEN") != "" {
 		log.Printf("auth enabled: API 需要 Bearer token")
 	}
+	if lim := rateLimitFromEnv(); lim > 0 {
+		log.Printf("rate limit: %d req/min per IP (DIAGRAM_RATE_LIMIT=0 to disable)", lim)
+	}
+	if origin := os.Getenv("DIAGRAM_ALLOW_ORIGIN"); origin != "" {
+		log.Printf("cors: allow origin %q", origin)
+	}
 	log.Printf("diagram server %s listening on %s (db: %s)", version, *addr, *dbPath)
 	log.Printf("open: http://localhost:%s", portOf(*addr))
 	srv := &http.Server{
@@ -150,7 +164,7 @@ func newRouter(store *Store) http.Handler {
 	// Frontend (embedded at build time; falls back to disk during dev).
 	mux.Handle("/", spaHandler())
 
-	return loggingMiddleware(corsMiddleware(mux))
+	return loggingMiddleware(corsMiddleware(rateLimitMiddleware(newRateLimiter(rateLimitFromEnv()))(mux)))
 }
 
 func printHelp() {

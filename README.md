@@ -111,6 +111,14 @@ DIAGRAM_TOKEN=my-secret diagram
 
 > 注意：请配合 HTTPS 反向代理使用，避免 token 明文传输。
 
+### 其他安全开关
+
+| 环境变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `DIAGRAM_TOKEN` | 空（不鉴权） | 设置后 `/api/diagrams*` 需要 Bearer token |
+| `DIAGRAM_RATE_LIMIT` | `600` | 每 IP 每分钟 API 请求上限，`0` 关闭限流 |
+| `DIAGRAM_ALLOW_ORIGIN` | 空（同源） | 仅在需要跨域时设置，例如 `https://example.com` 或 `*` |
+
 ### Docker（可选）
 
 ```bash
@@ -245,8 +253,8 @@ cd frontend && npm ci && npm run test
 ```
 
 覆盖内容：
-- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、更新工具函数
-- **前端**：形状与连线默认值、几何路径计算、文档序列化/反序列化、zustand 编辑器（增删改、撤销重做、多选对齐与分布）、模板完整性
+- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、限流与 CORS、更新工具函数
+- **前端**：形状与连线默认值、几何路径计算、文档序列化/反序列化、zustand 编辑器（增删改、撤销重做、多选对齐与分布）、模板完整性、组件渲染（Shape / ColorField / Toaster）
 
 ---
 
