@@ -1,4 +1,4 @@
-import { LayoutGrid, Keyboard, Sparkles } from "lucide-react";
+import { LayoutGrid, Keyboard, Sparkles, Bot, Copy, BookOpen } from "lucide-react";
 import { useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { useEditor } from "@/lib/store";
@@ -6,6 +6,7 @@ import { TEMPLATES } from "@/lib/templates";
 import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui";
 import { toast } from "@/lib/toast";
+import { copyText } from "@/lib/clipboard";
 
 /** First-run guidance shown while the canvas is empty. */
 export function EmptyState() {
@@ -15,6 +16,18 @@ export function EmptyState() {
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
   const setShortcutsOpen = useUi((s) => s.setShortcutsOpen);
   const { fitView } = useReactFlow();
+
+  const mcpConfig = JSON.stringify(
+    { mcpServers: { diagram: { command: "diagram", args: ["mcp"] } } },
+    null,
+    2
+  );
+
+  const copyMcp = async () => {
+    const ok = await copyText(mcpConfig);
+    if (ok) toast.success(t("empty.mcpCopied"));
+    else toast.error(t("share.copyFail"), t("share.copyFailDesc"));
+  };
 
   const applyTemplate = (id: string) => {
     const tpl = TEMPLATES.find((x) => x.id === id);
@@ -67,6 +80,36 @@ export function EmptyState() {
         <p className="mt-3 flex items-start gap-1 text-[11px] leading-relaxed text-muted-foreground">
           <Sparkles className="mt-0.5 h-3 w-3 shrink-0" /> {t("empty.hint")}
         </p>
+
+        <div className="mt-4 rounded-lg border bg-muted/30 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium">
+            <Bot className="h-3.5 w-3.5" /> {t("empty.mcpTitle")}
+          </div>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{t("empty.mcpDesc")}</p>
+          <div className="mt-2 space-y-1">
+            <div className="truncate rounded bg-background px-2 py-1 font-mono text-[10px] text-muted-foreground">
+              diagram mcp
+            </div>
+            <div className="flex items-center gap-1 truncate rounded bg-background px-2 py-1 font-mono text-[10px] text-muted-foreground">
+              <span className="text-[9px] uppercase opacity-70">{t("empty.mcpEndpoint")}</span>
+              <span className="truncate">{window.location.origin}/mcp</span>
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={copyMcp}>
+              <Copy className="h-3.5 w-3.5" /> {t("empty.mcpCopy")}
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 text-[11px]" asChild>
+              <a
+                href="https://github.com/dolphinZzv/diagram/blob/main/docs/mcp.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <BookOpen className="h-3.5 w-3.5" /> {t("empty.mcpDocs")}
+              </a>
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -83,6 +83,18 @@ export function exportJSON(data: unknown, filename = "diagram") {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Downloads arbitrary text (e.g. Mermaid source). */
+export function exportText(text: string, filename: string, mime = "text/plain") {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  download(url, filename);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function exportMermaid(text: string, filename = "diagram") {
+  exportText(text, `${filename}.mmd`, "text/plain;charset=utf-8");
+}
+
 export function readJSONFile(file: File): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

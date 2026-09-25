@@ -21,6 +21,17 @@ export function useShortcuts(onSave: () => void) {
       // While typing, let the browser handle everything else.
       if (editing) return;
 
+      // Don't hijack keys while a dialog control has focus.
+      const active = document.activeElement as HTMLElement | null;
+      const formFocused =
+        !!active &&
+        (active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          active.tagName === "SELECT" ||
+          active.tagName === "BUTTON" ||
+          active.isContentEditable);
+      if (formFocused && (e.key === "Tab" || e.key === "Enter" || e.key.startsWith("Arrow"))) return;
+
       if (mod && key === "z") {
         e.preventDefault();
         if (e.shiftKey) state.redo();
@@ -82,6 +93,34 @@ export function useShortcuts(onSave: () => void) {
         e.preventDefault();
         useUi.getState().setShortcutsOpen(true);
         return;
+      }
+      // Mind map: Tab adds a child, Enter adds a sibling.
+      if (e.key === "Tab" && state.selectedIds.length === 1) {
+        const id = state.selectedIds[0];
+        if (state.nodes.some((n) => n.id === id)) {
+          e.preventDefault();
+          state.addChildNode(id);
+          return;
+        }
+      }
+      if (e.key === "Enter" && state.selectedIds.length === 1) {
+        const id = state.selectedIds[0];
+        if (state.nodes.some((n) => n.id === id)) {
+          e.preventDefault();
+          state.addSiblingNode(id);
+          return;
+        }
+      }
+      // Arrow keys nudge the selection (Shift = 10px).
+      if (e.key.startsWith("Arrow") && state.selectedIds.length > 0) {
+        const step = e.shiftKey ? 10 : 1;
+        const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        if (dx !== 0 || dy !== 0) {
+          e.preventDefault();
+          state.nudgeSelected(dx, dy);
+          return;
+        }
       }
       if (e.key === "Delete" || e.key === "Backspace") {
         if (state.selectedIds.length > 0) {

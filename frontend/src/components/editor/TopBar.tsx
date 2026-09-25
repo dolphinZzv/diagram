@@ -19,6 +19,7 @@ import {
   Sun,
   Moon,
   Keyboard,
+  FileCode2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditor } from "@/lib/store";
-import { exportPNG, exportSVG, exportJSON, readJSONFile } from "@/lib/exporter";
+import { exportPNG, exportSVG, exportJSON, readJSONFile, exportMermaid } from "@/lib/exporter";
+import { toMermaid } from "@/lib/mermaid";
 import { parseDiagramFile, serializeDoc } from "@/lib/doc";
 import { TEMPLATES } from "@/lib/templates";
 import { useReactFlow } from "@xyflow/react";
@@ -273,6 +275,14 @@ export function TopBar() {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onExportImage("svg")}>
               <Image className="h-4 w-4" /> {t("topbar.exportSvg")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                exportMermaid(toMermaid(nodes, edges), meta.name || "diagram");
+                toast.success(t("topbar.exportedJson"));
+              }}
+            >
+              <FileCode2 className="h-4 w-4" /> {t("command.exportMermaid")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

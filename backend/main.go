@@ -180,6 +180,11 @@ func newRouter(store *Store) http.Handler {
 	protected.HandleFunc("POST /api/diagrams/{id}/share", api.EnableShare)
 	protected.HandleFunc("DELETE /api/diagrams/{id}/share", api.DisableShare)
 	protected.HandleFunc("PUT /api/diagrams/{id}/share/image", api.UploadShareImage)
+
+	// Draft / publish workflow.
+	protected.HandleFunc("GET /api/diagrams/{id}/publish", api.GetPublish)
+	protected.HandleFunc("POST /api/diagrams/{id}/publish", api.Publish)
+	protected.HandleFunc("DELETE /api/diagrams/{id}/publish", api.Unpublish)
 	mux.Handle("/api/diagrams", authMiddleware(protected))
 	mux.Handle("/api/diagrams/", authMiddleware(protected))
 

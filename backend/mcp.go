@@ -255,6 +255,10 @@ func (s *mcpServer) callTool(name string, args map[string]any) (string, error) {
 		return s.toolDiagramUpdate(args)
 	case "diagram_delete":
 		return s.toolDiagramDelete(args)
+	case "diagram_publish":
+		return s.toolDiagramPublish(args)
+	case "diagram_unpublish":
+		return s.toolDiagramUnpublish(args)
 	case "node_add":
 		return s.toolNodeAdd(args)
 	case "node_update":
@@ -325,6 +329,16 @@ func (s *mcpServer) toolDefs() []map[string]any {
 		{
 			"name":        "diagram_delete",
 			"description": "Delete a diagram by id.",
+			"inputSchema": obj(map[string]any{"id": strProp("diagram id")}, "id"),
+		},
+		{
+			"name":        "diagram_publish",
+			"description": "Publish the current draft so the read-only share link/images show it.",
+			"inputSchema": obj(map[string]any{"id": strProp("diagram id")}, "id"),
+		},
+		{
+			"name":        "diagram_unpublish",
+			"description": "Remove the published snapshot (share falls back to the current data).",
 			"inputSchema": obj(map[string]any{"id": strProp("diagram id")}, "id"),
 		},
 		{
@@ -528,6 +542,29 @@ func (s *mcpServer) toolDiagramDelete(args map[string]any) (string, error) {
 	_ = s.store.DeleteVersionsForDiagram(id)
 	_ = s.store.DeleteShareAssets(id)
 	return jsonText(map[string]any{"status": "deleted", "id": id})
+}
+
+func (s *mcpServer) toolDiagramPublish(args map[string]any) (string, error) {
+	id, err := requiredString(args, "id")
+	if err != nil {
+		return "", err
+	}
+	ts, err := s.store.Publish(id)
+	if err != nil {
+		return "", err
+	}
+	return jsonText(map[string]any{"published": true, "publishedAt": ts})
+}
+
+func (s *mcpServer) toolDiagramUnpublish(args map[string]any) (string, error) {
+	id, err := requiredString(args, "id")
+	if err != nil {
+		return "", err
+	}
+	if err := s.store.Unpublish(id); err != nil {
+		return "", err
+	}
+	return jsonText(map[string]any{"published": false})
 }
 
 func (s *mcpServer) toolNodeAdd(args map[string]any) (string, error) {

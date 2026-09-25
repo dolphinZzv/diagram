@@ -310,6 +310,16 @@ const zh: Dict = {
   "share.imageFail": "生成图片失败",
   "share.imageNotReady": "尚未生成，点击上方按钮生成",
 
+  // draft / publish
+  "share.publish": "发布",
+  "share.published": "已发布",
+  "share.publishedAt": "发布于",
+  "share.notPublished": "尚未发布",
+  "share.dirty": "有未发布的修改",
+  "share.publishHint": "编辑内容是草稿；分享链接与图片始终指向已发布版本。",
+  "share.publishedToast": "已发布最新版本",
+  "share.publishFail": "发布失败",
+
   // about / settings
   "about.title": "关于 Diagram",
   "about.version": "版本",
@@ -379,6 +389,12 @@ const zh: Dict = {
   "empty.addShape": "添加图形",
   "empty.shortcuts": "快捷键",
   "empty.hint": "双击图形编辑文字 · 长按图形复制 · 拖拽空白处框选",
+  "empty.mcpTitle": "用 AI Agent 生成（MCP）",
+  "empty.mcpDesc": "已内置 MCP server，Claude / Cursor 等可直接创建与编辑流程图。",
+  "empty.mcpEndpoint": "HTTP 端点",
+  "empty.mcpCopy": "复制 MCP 配置",
+  "empty.mcpCopied": "MCP 配置已复制",
+  "empty.mcpDocs": "MCP 文档",
 
   "ctx.edit": "编辑属性",
   "ctx.copy": "复制",
@@ -395,6 +411,32 @@ const zh: Dict = {
   "ctx.fitView": "适应视图",
   "ctx.zoomReset": "重置缩放",
   "about.autoSave": "自动保存",
+
+  "mindmap.child": "子主题",
+  "mindmap.sibling": "同级主题",
+  "mindmap.layout": "思维导图布局",
+  "mindmap.addChild": "添加子主题",
+  "mindmap.addSibling": "添加同级主题",
+  "template.mindmap.name": "思维导图",
+  "template.mindmap.desc": "中心主题 + 多级分支",
+  "command.title": "命令面板",
+  "command.placeholder": "搜索操作、图形、模板、图纸、节点…",
+  "command.actions": "操作",
+  "command.shapes": "图形",
+  "command.templates": "模板",
+  "command.diagrams": "图纸",
+  "command.nodes": "节点",
+  "command.empty": "没有匹配项",
+  "command.autoLayoutTB": "自动布局：纵向",
+  "command.autoLayoutLR": "自动布局：横向",
+  "command.mindMap": "思维导图布局",
+  "command.exportMermaid": "导出 Mermaid",
+  "command.copyMermaid": "复制 Mermaid",
+  "command.palette": "一键配色",
+  "palette.ocean": "海洋",
+  "palette.forest": "森林",
+  "palette.sunset": "日落",
+  "palette.mono": "单色",
 };
 
 const en: Dict = {
@@ -693,6 +735,15 @@ const en: Dict = {
   "share.imageFail": "Failed to generate image",
   "share.imageNotReady": "Not generated yet — click the button above",
 
+  "share.publish": "Publish",
+  "share.published": "Published",
+  "share.publishedAt": "Published at",
+  "share.notPublished": "Not published",
+  "share.dirty": "Unpublished changes",
+  "share.publishHint": "Edits are drafts; the share link and images always show the published version.",
+  "share.publishedToast": "Published the latest version",
+  "share.publishFail": "Publish failed",
+
   "about.title": "About Diagram",
   "about.version": "Version",
   "about.commit": "Commit",
@@ -758,6 +809,12 @@ const en: Dict = {
   "empty.addShape": "Add a shape",
   "empty.shortcuts": "Shortcuts",
   "empty.hint": "Double-click to edit · long-press to copy · drag empty space to marquee",
+  "empty.mcpTitle": "Generate with an AI agent (MCP)",
+  "empty.mcpDesc": "A built-in MCP server lets Claude / Cursor create and edit diagrams directly.",
+  "empty.mcpEndpoint": "HTTP endpoint",
+  "empty.mcpCopy": "Copy MCP config",
+  "empty.mcpCopied": "MCP config copied",
+  "empty.mcpDocs": "MCP docs",
 
   "ctx.edit": "Edit properties",
   "ctx.copy": "Copy",
@@ -774,6 +831,32 @@ const en: Dict = {
   "ctx.fitView": "Fit view",
   "ctx.zoomReset": "Reset zoom",
   "about.autoSave": "Auto-save",
+
+  "mindmap.child": "Subtopic",
+  "mindmap.sibling": "Sibling topic",
+  "mindmap.layout": "Mind-map layout",
+  "mindmap.addChild": "Add subtopic",
+  "mindmap.addSibling": "Add sibling topic",
+  "template.mindmap.name": "Mind map",
+  "template.mindmap.desc": "Central topic with branches",
+  "command.title": "Command palette",
+  "command.placeholder": "Search actions, shapes, templates, diagrams, nodes…",
+  "command.actions": "Actions",
+  "command.shapes": "Shapes",
+  "command.templates": "Templates",
+  "command.diagrams": "Diagrams",
+  "command.nodes": "Nodes",
+  "command.empty": "No results",
+  "command.autoLayoutTB": "Auto layout: vertical",
+  "command.autoLayoutLR": "Auto layout: horizontal",
+  "command.mindMap": "Mind-map layout",
+  "command.exportMermaid": "Export Mermaid",
+  "command.copyMermaid": "Copy Mermaid",
+  "command.palette": "Apply palette",
+  "palette.ocean": "Ocean",
+  "palette.forest": "Forest",
+  "palette.sunset": "Sunset",
+  "palette.mono": "Mono",
 };
 
 const dicts: Record<Lang, Dict> = { zh, en };
@@ -826,6 +909,11 @@ export function useT() {
 }
 
 export { detectLang };
+
+/** Translate using the current language (for non-React code, e.g. the store). */
+export function tr(key: string, vars?: Record<string, string | number>): string {
+  return translate(useI18n.getState().lang, key, vars);
+}
 
 /** Label used for a freshly added shape (localized shape name). */
 export function defaultShapeLabel(shape: string): string {

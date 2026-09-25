@@ -11,7 +11,10 @@ import {
 } from "@xyflow/react";
 import { defaultEdgeData, defaultNodeData, type ShapeNodeData, type EdgeData } from "./types";
 import { uid } from "./id";
-import { defaultShapeLabel } from "./i18n";
+import { defaultShapeLabel, tr } from "./i18n";
+import { layoutLayered } from "./layout";
+import { layoutMindMap } from "./mindmap";
+import { paletteTone } from "./palettes";
 
 export interface DiagramMeta {
   id: string | null;
@@ -19,6 +22,8 @@ export interface DiagramMeta {
   description: string;
   saved: boolean;
   saving: boolean;
+  /** Active read-only share token (empty when sharing is off). */
+  shareToken: string;
 }
 
 export type AlignMode = "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom";
@@ -68,6 +73,12 @@ interface EditorState {
 
   alignNodes: (mode: AlignMode) => void;
   distributeNodes: (axis: "horizontal" | "vertical") => void;
+  autoLayout: (direction: "TB" | "LR") => void;
+  mindMapLayout: (rootId?: string) => void;
+  nudgeSelected: (dx: number, dy: number) => void;
+  restyleAll: (paletteKey: string) => void;
+  addChildNode: (parentId: string) => void;
+  addSiblingNode: (nodeId: string) => void;
 
   loadDoc: (nodes: Node[], edges: Edge[]) => void;
   clearAll: () => void;
@@ -78,6 +89,9 @@ interface EditorState {
 }
 
 const MAX_HISTORY = 100;
+
+// Coalesce history entries while the user holds an arrow key.
+let lastNudgeAt = 0;
 
 function nodeWidth(n: Node): number {
   const data = n.data as Partial<ShapeNodeData>;
@@ -100,7 +114,7 @@ function nodeHeight(n: Node): number {
 export const useEditor = create<EditorState>((set, get) => ({
   nodes: [],
   edges: [],
-  meta: { id: null, name: "未命名流程图", description: "", saved: true, saving: false },
+  meta: { id: null, name: "未命名流程图", description: "", saved: true, saving: false, shareToken: "" },
   selected: null,
   selectedIds: [],
   clipboard: null,
@@ -542,6 +556,130 @@ export const useEditor = create<EditorState>((set, get) => ({
       past: [],
       future: [],
       meta: { ...get().meta, saved: true },
+    });
+  },
+
+  autoLayout: (direction) => {
+    const { nodes, edges, pushHistory } = get();
+    if (nodes.length === 0) return;
+    pushHistory();
+    set({ nodes: layoutLayered(nodes, edges, direction), meta: { ...get().meta, saved: false } });
+  },
+
+  mindMapLayout: (rootId) => {
+    const { nodes, edges, selectedIds, pushHistory } = get();
+    if (nodes.length === 0) return;
+    pushHistory();
+    set({
+      nodes: layoutMindMap(nodes, edges, rootId ?? selectedIds[0]),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  nudgeSelected: (dx, dy) => {
+    const { nodes, selectedIds } = get();
+    const sel = new Set(selectedIds);
+    if (sel.size === 0) return;
+    const now = Date.now();
+    if (now - lastNudgeAt > 600) get().pushHistory();
+    lastNudgeAt = now;
+    set({
+      nodes: nodes.map((n) =>
+        sel.has(n.id) ? { ...n, position: { x: n.position.x + dx, y: n.position.y + dy } } : n
+      ),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  restyleAll: (paletteKey) => {
+    const { nodes, pushHistory } = get();
+    if (nodes.length === 0) return;
+    pushHistory();
+    let i = 0;
+    set({
+      nodes: nodes.map((n) => {
+        if (n.type === "group") return n;
+        const tone = paletteTone(paletteKey, i);
+        i += 1;
+        if (!tone) return n;
+        return { ...n, data: { ...n.data, fill: tone.fill, stroke: tone.stroke, textColor: tone.textColor } };
+      }),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  addChildNode: (parentId) => {
+    const { nodes, edges, pushHistory } = get();
+    const parent = nodes.find((n) => n.id === parentId);
+    if (!parent) return;
+    pushHistory();
+    const pw = nodeWidth(parent);
+    const ph = nodeHeight(parent);
+    const data: ShapeNodeData = {
+      ...defaultNodeData("rounded"),
+      label: tr("mindmap.child"),
+      fill: "#ffffff",
+      stroke: "#94a3b8",
+      textColor: "#0f172a",
+      width: 120,
+      height: 56,
+    };
+    const id = uid("n_");
+    const node: Node = {
+      id,
+      type: "shape",
+      position: { x: parent.position.x + pw + 90, y: parent.position.y + ph / 2 - data.height / 2 },
+      data,
+      style: { width: data.width, height: data.height },
+      selected: true,
+    };
+    const edge: Edge = { id: uid("e_"), source: parentId, target: id, type: "custom", data: defaultEdgeData() };
+    set({
+      nodes: [...nodes.map((n) => ({ ...n, selected: false })), node],
+      edges: [...edges, edge],
+      selectedIds: [id],
+      selected: id,
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  addSiblingNode: (nodeId) => {
+    const { nodes, edges, pushHistory } = get();
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    pushHistory();
+    const parentEdge = edges.find((e) => e.target === nodeId);
+    const data: ShapeNodeData = {
+      ...defaultNodeData("rounded"),
+      label: tr("mindmap.sibling"),
+      fill: "#ffffff",
+      stroke: "#94a3b8",
+      textColor: "#0f172a",
+      width: 120,
+      height: 56,
+    };
+    const id = uid("n_");
+    const newNode: Node = {
+      id,
+      type: "shape",
+      position: { x: node.position.x, y: node.position.y + nodeHeight(node) + 22 },
+      data,
+      style: { width: data.width, height: data.height },
+      selected: true,
+    };
+    const edge: Edge = {
+      id: uid("e_"),
+      source: parentEdge ? parentEdge.source : nodeId,
+      target: id,
+      type: "custom",
+      data: defaultEdgeData(),
+    };
+    set({
+      nodes: [...nodes.map((n) => ({ ...n, selected: false })), newNode],
+      edges: [...edges, edge],
+      selectedIds: [id],
+      selected: id,
+      meta: { ...get().meta, saved: false },
     });
   },
 

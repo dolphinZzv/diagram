@@ -21,7 +21,7 @@ function reset() {
     clipboard: null,
     past: [],
     future: [],
-    meta: { id: null, name: "test", description: "", saved: true, saving: false },
+    meta: { id: null, name: "test", description: "", saved: true, saving: false, shareToken: "" },
   });
 }
 

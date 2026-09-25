@@ -131,4 +131,30 @@ export const TEMPLATES: Template[] = [
       ],
     }),
   },
+  {
+    id: "mindmap",
+    name: "思维导图",
+    description: "中心主题 + 多级分支",
+    build: () => ({
+      nodes: [
+        node("mm-root", -70, -32, { shape: "rounded", label: "中心主题", fill: "#ede9fe", stroke: "#7c3aed", textColor: "#5b21b6", width: 140, height: 64 }),
+        node("mm-a", 230, -170, { shape: "rounded", label: "分支 A", fill: "#e0f2fe", stroke: "#0284c7", textColor: "#075985", width: 120, height: 56 }),
+        node("mm-a1", 440, -210, { shape: "rounded", label: "子主题 A1", fill: "#f8fafc", stroke: "#94a3b8", width: 120, height: 52 }),
+        node("mm-a2", 440, -130, { shape: "rounded", label: "子主题 A2", fill: "#f8fafc", stroke: "#94a3b8", width: 120, height: 52 }),
+        node("mm-b", 230, -60, { shape: "rounded", label: "分支 B", fill: "#dcfce7", stroke: "#16a34a", textColor: "#166534", width: 120, height: 56 }),
+        node("mm-c", 230, 50, { shape: "rounded", label: "分支 C", fill: "#fef3c7", stroke: "#d97706", textColor: "#92400e", width: 120, height: 56 }),
+        node("mm-d", -330, -110, { shape: "rounded", label: "分支 D", fill: "#fce7f3", stroke: "#db2777", textColor: "#9d174d", width: 120, height: 56 }),
+        node("mm-e", -330, 20, { shape: "rounded", label: "分支 E", fill: "#ccfbf1", stroke: "#0d9488", textColor: "#115e59", width: 120, height: 56 }),
+      ],
+      edges: [
+        edge("me-1", "mm-root", "mm-a", { sourceHandle: "r", targetHandle: "l" }),
+        edge("me-2", "mm-a", "mm-a1", { sourceHandle: "r", targetHandle: "l" }),
+        edge("me-3", "mm-a", "mm-a2", { sourceHandle: "r", targetHandle: "l" }),
+        edge("me-4", "mm-root", "mm-b", { sourceHandle: "r", targetHandle: "l" }),
+        edge("me-5", "mm-root", "mm-c", { sourceHandle: "r", targetHandle: "l" }),
+        edge("me-6", "mm-root", "mm-d", { sourceHandle: "l", targetHandle: "r" }),
+        edge("me-7", "mm-root", "mm-e", { sourceHandle: "l", targetHandle: "r" }),
+      ],
+    }),
+  },
 ];

@@ -13,12 +13,14 @@ import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui";
 import { useDraftPersistence } from "@/hooks/useDraft";
 import { useAutoSave } from "@/hooks/useAutoSave";
+import { useShareSync } from "@/hooks/useShareSync";
 import { Toaster } from "@/components/Toaster";
 
 function EditorApp() {
   const t = useT();
   useDraftPersistence();
   useAutoSave();
+  useShareSync();
   const paletteOpen = useUi((s) => s.paletteOpen);
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
   const inspectorOpen = useUi((s) => s.inspectorOpen);

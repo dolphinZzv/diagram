@@ -121,6 +121,8 @@ HTTP 传输细节：
 | `diagram_create` | `name`, `description?` | `{id, name}` |
 | `diagram_update` | `id`, `data` | `{id, nodes, edges, updatedAt}` |
 | `diagram_delete` | `id` | `{status, id}` |
+| `diagram_publish` | `id` | `{published, publishedAt}` |
+| `diagram_unpublish` | `id` | `{published: false}` |
 
 ### 节点
 
@@ -347,6 +349,8 @@ edge_add { "id":"8f3c...", "source":"n_order", "target":"n_pay",
 ---
 
 ## 6. 示例：版本与分享
+
+> 分享链接与图片始终显示**已发布**版本；编辑内容为草稿，编辑后调用 `diagram_publish` 才会对外生效。
 
 **用户提示词**
 

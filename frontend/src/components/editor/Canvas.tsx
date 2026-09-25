@@ -29,6 +29,11 @@ import {
   Maximize2,
   ZoomIn,
   MousePointer2,
+  CornerDownRight,
+  Plus,
+  Network,
+  LayoutDashboard,
+  Palette as PaletteIcon,
 } from "lucide-react";
 import { nodeTypes, edgeTypes } from "./flow-types";
 import { useEditor } from "@/lib/store";
@@ -39,6 +44,11 @@ import { uid } from "@/lib/id";
 import { useTheme, canvasColors } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 import { isCompactLayout, useUi } from "@/lib/ui";
+import { toMermaid } from "@/lib/mermaid";
+import { DIAGRAM_PALETTES } from "@/lib/palettes";
+import { exportMermaid } from "@/lib/exporter";
+import { copyText } from "@/lib/clipboard";
+import { toast } from "@/lib/toast";
 import { ContextMenu, type CtxItem } from "./ContextMenu";
 import { HelperLines } from "./HelperLines";
 import { EmptyState } from "./EmptyState";
@@ -293,6 +303,9 @@ export function Canvas() {
         { label: t("ctx.group"), icon: <GroupIcon className="h-4 w-4" />, shortcut: "Ctrl G", onClick: () => { s.groupSelected(); } },
         { label: t("ctx.ungroup"), icon: <UngroupIcon className="h-4 w-4" />, disabled: !hasGroup, onClick: () => s.ungroupSelected() },
         "separator",
+        { label: t("mindmap.addChild"), icon: <CornerDownRight className="h-4 w-4" />, shortcut: "Tab", onClick: () => { select(); s.addChildNode(id); } },
+        { label: t("mindmap.addSibling"), icon: <Plus className="h-4 w-4" />, shortcut: "Enter", onClick: () => { select(); s.addSiblingNode(id); } },
+        "separator",
         locked
           ? { label: t("ctx.unlock"), icon: <LockOpen className="h-4 w-4" />, onClick: () => { select(); s.lockSelected(false); } }
           : { label: t("ctx.lock"), icon: <LockIcon className="h-4 w-4" />, onClick: () => { select(); s.lockSelected(true); } },
@@ -310,6 +323,28 @@ export function Canvas() {
     return [
       { label: t("ctx.paste"), icon: <ClipboardPaste className="h-4 w-4" />, shortcut: "Ctrl V", disabled: !s.clipboard, onClick: () => s.paste() },
       { label: t("ctx.selectAll"), icon: <MousePointer2 className="h-4 w-4" />, shortcut: "Ctrl A", onClick: () => s.selectAll() },
+      "separator",
+      { label: t("command.autoLayoutTB"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("TB") },
+      { label: t("command.autoLayoutLR"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("LR") },
+      { label: t("command.mindMap"), icon: <Network className="h-4 w-4" />, onClick: () => s.mindMapLayout() },
+      "separator",
+      ...Object.entries(DIAGRAM_PALETTES).map(([key, p]) => ({
+        label: `${t("command.palette")}: ${t(p.nameKey)}`,
+        icon: <PaletteIcon className="h-4 w-4" />,
+        onClick: () => s.restyleAll(key),
+      })),
+      "separator",
+      {
+        label: t("command.exportMermaid"),
+        onClick: () => exportMermaid(toMermaid(s.nodes, s.edges), s.meta.name || "diagram"),
+      },
+      {
+        label: t("command.copyMermaid"),
+        onClick: async () => {
+          const ok = await copyText(toMermaid(s.nodes, s.edges));
+          if (ok) toast.success(t("share.linkCopied"));
+        },
+      },
       "separator",
       { label: t("ctx.fitView"), icon: <Maximize2 className="h-4 w-4" />, onClick: () => fitView({ padding: 0.25 }) },
       { label: t("ctx.zoomReset"), icon: <ZoomIn className="h-4 w-4" />, onClick: () => zoomTo(1) },

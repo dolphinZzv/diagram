@@ -46,6 +46,8 @@ func NewStore(path string) (*Store, error) {
 			description TEXT NOT NULL DEFAULT '',
 			data        TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
 			share_token TEXT NOT NULL DEFAULT '',
+			published_data TEXT NOT NULL DEFAULT '',
+			published_at   TEXT NOT NULL DEFAULT '',
 			created_at  TEXT NOT NULL,
 			updated_at  TEXT NOT NULL
 		);
@@ -78,6 +80,13 @@ func NewStore(path string) (*Store, error) {
 	}
 	// Migrate databases created before share support was added.
 	if err := ensureColumn(db, "diagrams", "share_token", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return nil, err
+	}
+	// Migrate databases created before draft/publish support.
+	if err := ensureColumn(db, "diagrams", "published_data", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return nil, err
+	}
+	if err := ensureColumn(db, "diagrams", "published_at", "TEXT NOT NULL DEFAULT ''"); err != nil {
 		return nil, err
 	}
 	// The share index must be created *after* the column exists.

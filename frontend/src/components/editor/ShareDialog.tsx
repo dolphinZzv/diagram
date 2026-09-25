@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, FileImage, Image as ImageIcon, Link2, Loader2, RefreshCw, Share2, ShieldOff } from "lucide-react";
+import {
+  Check,
+  Copy,
+  FileImage,
+  Image as ImageIcon,
+  Link2,
+  Loader2,
+  RefreshCw,
+  Rocket,
+  Share2,
+  ShieldOff,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,43 +21,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { api, type ShareState } from "@/lib/api";
+import { api, type PublishState, type ShareState } from "@/lib/api";
 import { useEditor } from "@/lib/store";
 import { useT } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
-import { renderSvg, svgToPngBlob } from "@/lib/exporter";
+import { uploadShareImages } from "@/lib/shareImage";
+import { copyText } from "@/lib/clipboard";
 import { toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-}
-
-/** Clipboard API needs a secure context; fall back for plain-HTTP LAN use. */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    if (window.isSecureContext && navigator.clipboard) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    /* fall through */
-  }
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.top = "-1000px";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
-  } catch {
-    return false;
-  }
 }
 
 function CopyRow({ label, value }: { label: string; value: string }) {
@@ -80,22 +66,27 @@ export function ShareDialog({ open, onOpenChange }: Props) {
   const metaId = useEditor((s) => s.meta.id);
   const nodes = useEditor((s) => s.nodes);
   const edges = useEditor((s) => s.edges);
+  const setMeta = useEditor((s) => s.setMeta);
 
   const [share, setShare] = useState<ShareState>({ enabled: false, token: "" });
+  const [publish, setPublish] = useState<PublishState>({ published: false, publishedAt: "", dirty: false });
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [genBusy, setGenBusy] = useState(false);
+  const [pubBusy, setPubBusy] = useState(false);
   const [images, setImages] = useState({ svg: false, png: false });
 
   const refresh = useCallback(async () => {
     if (!metaId) {
       setShare({ enabled: false, token: "" });
+      setPublish({ published: false, publishedAt: "", dirty: false });
       return;
     }
     setLoading(true);
     try {
-      const s = await api.getShare(metaId);
+      const [s, p] = await Promise.all([api.getShare(metaId), api.getPublish(metaId)]);
       setShare(s);
+      setPublish(p);
+      setMeta({ shareToken: s.enabled ? s.token : "" });
       if (s.token) {
         const check = async (format: "svg" | "png") => {
           try {
@@ -113,7 +104,7 @@ export function ShareDialog({ open, onOpenChange }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [metaId]);
+  }, [metaId, setMeta]);
 
   useEffect(() => {
     if (open) refresh();
@@ -123,25 +114,52 @@ export function ShareDialog({ open, onOpenChange }: Props) {
   const svgUrl = share.token ? `${window.location.origin}/api/share/${share.token}.svg` : "";
   const pngUrl = share.token ? `${window.location.origin}/api/share/${share.token}.png` : "";
 
+  const doPublish = useCallback(
+    async (silent = false) => {
+      if (!metaId) return;
+      setPubBusy(true);
+      try {
+        const res = await api.publish(metaId);
+        await uploadShareImages(metaId, nodes, edges, theme);
+        setPublish({ published: true, publishedAt: res.publishedAt, dirty: false });
+        setImages({ svg: true, png: true });
+        if (!silent) toast.success(t("share.publishedToast"));
+      } catch (e) {
+        toast.error(t("share.publishFail"), String(e));
+      } finally {
+        setPubBusy(false);
+      }
+    },
+    [metaId, nodes, edges, theme, t]
+  );
+
   const onEnable = useCallback(async () => {
     if (!metaId) return;
     setBusy(true);
     try {
-      setShare(await api.enableShare(metaId));
+      const s = await api.enableShare(metaId);
+      setShare(s);
+      setMeta({ shareToken: s.token });
       toast.success(t("share.enabledToast"), t("share.enabledDesc"));
+      // Publish immediately so the share link has content.
+      await doPublish(true);
     } catch (e) {
       toast.error(t("share.enableFail"), String(e));
     } finally {
       setBusy(false);
     }
-  }, [metaId, t]);
+  }, [metaId, setMeta, doPublish, t]);
 
   const onDisable = useCallback(async () => {
     if (!metaId) return;
     if (!confirm(t("share.confirmDisable"))) return;
     setBusy(true);
     try {
-      setShare(await api.disableShare(metaId));
+      await api.disableShare(metaId);
+      await api.unpublish(metaId).catch(() => undefined);
+      setShare({ enabled: false, token: "" });
+      setPublish({ published: false, publishedAt: "", dirty: false });
+      setMeta({ shareToken: "" });
       setImages({ svg: false, png: false });
       toast.info(t("share.disabledToast"));
     } catch (e) {
@@ -149,28 +167,13 @@ export function ShareDialog({ open, onOpenChange }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [metaId, t]);
+  }, [metaId, setMeta, t]);
 
-  const onGenerateImages = useCallback(async () => {
-    if (!metaId || !share.token) return;
-    setGenBusy(true);
-    try {
-      const svg = renderSvg(nodes, edges, theme);
-      await api.uploadShareImage(
-        metaId,
-        "svg",
-        new Blob([svg], { type: "image/svg+xml;charset=utf-8" })
-      );
-      const png = await svgToPngBlob(svg, 2);
-      await api.uploadShareImage(metaId, "png", png);
-      setImages({ svg: true, png: true });
-      toast.success(t("share.imageGenerated"));
-    } catch (e) {
-      toast.error(t("share.imageFail"), String(e));
-    } finally {
-      setGenBusy(false);
-    }
-  }, [metaId, share.token, nodes, edges, theme, t]);
+  const statusText = publish.published
+    ? publish.dirty
+      ? t("share.dirty")
+      : t("share.published")
+    : t("share.notPublished");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,6 +196,31 @@ export function ShareDialog({ open, onOpenChange }: Props) {
           </div>
         ) : share.enabled ? (
           <div className="space-y-4">
+            {/* publish status */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <span
+                    className={cn(
+                      "inline-block h-2 w-2 rounded-full",
+                      publish.published && !publish.dirty ? "bg-green-500" : "bg-amber-500"
+                    )}
+                  />
+                  {statusText}
+                </div>
+                {publish.publishedAt ? (
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">
+                    {t("share.publishedAt")} {new Date(publish.publishedAt).toLocaleString()}
+                  </div>
+                ) : null}
+              </div>
+              <Button size="sm" onClick={() => doPublish(false)} disabled={pubBusy}>
+                {pubBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                {t("share.publish")}
+              </Button>
+            </div>
+            <p className="-mt-2 text-[11px] text-muted-foreground">{t("share.publishHint")}</p>
+
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <Link2 className="h-3.5 w-3.5" /> {t("share.link")}
@@ -209,7 +237,6 @@ export function ShareDialog({ open, onOpenChange }: Props) {
                   {t("share.preview")}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">{t("share.hint")}</p>
             </div>
 
             <Separator />
@@ -217,25 +244,21 @@ export function ShareDialog({ open, onOpenChange }: Props) {
             <div className="space-y-2">
               <div className="text-xs font-medium text-muted-foreground">{t("share.imageSection")}</div>
               <p className="text-[11px] text-muted-foreground">{t("share.imageHint")}</p>
-              <Button size="sm" onClick={onGenerateImages} disabled={genBusy || nodes.length === 0}>
-                {genBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-                {t("share.publishImage")}
-              </Button>
-              {(!images.svg && !images.png) && (
-                <p className="text-[11px] text-amber-600 dark:text-amber-400">{t("share.imageNotReady")}</p>
-              )}
-              {images.svg && (
+              {images.svg ? (
                 <div className="flex items-center gap-2">
-                  <FileImage className="h-3.5 w-3.5 text-muted-foreground" />
+                  <FileImage className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <CopyRow label={t("share.imageSvg")} value={svgUrl} />
                 </div>
-              )}
-              {images.png && (
+              ) : null}
+              {images.png ? (
                 <div className="flex items-center gap-2">
-                  <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <ImageIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <CopyRow label={t("share.imagePng")} value={pngUrl} />
                 </div>
-              )}
+              ) : null}
+              {!images.svg && !images.png ? (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">{t("share.imageNotReady")}</p>
+              ) : null}
             </div>
           </div>
         ) : (

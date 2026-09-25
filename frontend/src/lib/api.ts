@@ -34,6 +34,12 @@ export interface ShareState {
   token: string;
 }
 
+export interface PublishState {
+  published: boolean;
+  publishedAt: string;
+  dirty: boolean;
+}
+
 const base = "/api";
 
 /** Token is stored in localStorage and sent as a Bearer header when the
@@ -104,6 +110,12 @@ export const api = {
   enableShare: (id: string) => req<ShareState>(`/diagrams/${id}/share`, { method: "POST" }),
   disableShare: (id: string) => req<ShareState>(`/diagrams/${id}/share`, { method: "DELETE" }),
   getShared: (token: string) => req<SharedDiagram>(`/share/${token}`),
+
+  // ---- draft / publish ----
+  getPublish: (id: string) => req<PublishState>(`/diagrams/${id}/publish`),
+  publish: (id: string) =>
+    req<{ published: boolean; publishedAt: string }>(`/diagrams/${id}/publish`, { method: "POST" }),
+  unpublish: (id: string) => req<{ published: boolean }>(`/diagrams/${id}/publish`, { method: "DELETE" }),
 
   // Uploads a client-rendered image for a share token (raw bytes body).
   uploadShareImage: async (id: string, format: "svg" | "png", blob: Blob) => {

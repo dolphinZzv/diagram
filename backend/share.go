@@ -178,7 +178,7 @@ func (a *API) PublicShare(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "missing token")
 		return
 	}
-	d, err := a.store.GetByShareToken(token)
+	d, publishedAt, err := a.store.GetPublishedByShareToken(token)
 	if errors.Is(err, errNotFound) {
 		writeErr(w, http.StatusNotFound, "share not found or disabled")
 		return
@@ -213,6 +213,6 @@ func (a *API) PublicShare(w http.ResponseWriter, r *http.Request) {
 		"name":        d.Name,
 		"description": d.Description,
 		"data":        d.Data,
-		"updatedAt":   d.UpdatedAt,
+		"updatedAt":   publishedAt,
 	})
 }
