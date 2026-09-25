@@ -59,6 +59,7 @@ interface EditorState {
   duplicateSelected: () => void;
   copySelected: () => void;
   paste: () => void;
+  insertFragment: (fragNodes: Node[], fragEdges: Edge[], delta: { x: number; y: number }) => void;
   selectAll: () => void;
 
   setLocked: (id: string, locked: boolean) => void;
@@ -303,6 +304,39 @@ export const useEditor = create<EditorState>((set, get) => ({
       source: idMap.get(e.source) ?? e.source,
       target: idMap.get(e.target) ?? e.target,
       selected: false,
+    }));
+    set({
+      nodes: [...nodes.map((n) => ({ ...n, selected: false })), ...clones],
+      edges: [...edges, ...edgeClones],
+      selectedIds: clones.map((c) => c.id),
+      selected: clones.length === 1 ? clones[0].id : null,
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  insertFragment: (fragNodes, fragEdges, delta) => {
+    if (fragNodes.length === 0) return;
+    const { nodes, edges, pushHistory } = get();
+    pushHistory();
+    const idMap = new Map<string, string>();
+    for (const n of fragNodes) {
+      idMap.set(n.id, uid(n.type === "group" ? "g_" : n.type === "lane" ? "l_" : "n_"));
+    }
+    const clones: Node[] = fragNodes.map((n) => ({
+      ...n,
+      id: idMap.get(n.id)!,
+      parentId: n.parentId ? idMap.get(n.parentId) : undefined,
+      position: { x: n.position.x + delta.x, y: n.position.y + delta.y },
+      selected: true,
+      data: { ...n.data },
+    }));
+    const edgeClones: Edge[] = fragEdges.map((e) => ({
+      ...e,
+      id: uid("e_"),
+      source: idMap.get(e.source) ?? e.source,
+      target: idMap.get(e.target) ?? e.target,
+      selected: false,
+      data: { ...e.data },
     }));
     set({
       nodes: [...nodes.map((n) => ({ ...n, selected: false })), ...clones],

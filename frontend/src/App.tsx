@@ -12,6 +12,10 @@ import { ShortcutsDialog } from "@/components/editor/ShortcutsDialog";
 import { CommandPalette } from "@/components/editor/CommandPalette";
 import { ImportTextDialog } from "@/components/editor/ImportTextDialog";
 import { TemplateGallery } from "@/components/editor/TemplateGallery";
+import { SaveComponentDialog } from "@/components/editor/SaveComponentDialog";
+import { ComponentLibraryDialog } from "@/components/editor/ComponentLibraryDialog";
+import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
+import { SelectionActionsBar } from "@/components/editor/SelectionActionsBar";
 import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui";
 import { useDraftPersistence } from "@/hooks/useDraft";
@@ -44,6 +48,7 @@ function EditorApp() {
         </filter>
       </svg>
       <TopBar />
+      <SelectionActionsBar />
       <div className="flex flex-1 overflow-hidden">
         <aside className="hidden w-[210px] shrink-0 border-r bg-background lg:block">
           <ShapePalette />
@@ -99,10 +104,13 @@ function EditorApp() {
         </SheetContent>
       </Sheet>
 
+      <SelectionToolbar />
       <ShortcutsDialog />
       <CommandPalette />
       <ImportTextDialog />
       <TemplateGallery />
+      <SaveComponentDialog />
+      <ComponentLibraryDialog />
     </div>
   );
 }

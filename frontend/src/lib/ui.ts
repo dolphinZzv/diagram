@@ -39,6 +39,12 @@ interface UiState {
   /** Template gallery dialog. */
   templateGalleryOpen: boolean;
   setTemplateGalleryOpen: (v: boolean) => void;
+  /** Save-as-component dialog. */
+  saveComponentOpen: boolean;
+  setSaveComponentOpen: (v: boolean) => void;
+  /** Component library manager dialog. */
+  componentLibraryOpen: boolean;
+  setComponentLibraryOpen: (v: boolean) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -76,6 +82,10 @@ export const useUi = create<UiState>((set) => ({
   setImportOpen: (v) => set({ importOpen: v }),
   templateGalleryOpen: false,
   setTemplateGalleryOpen: (v) => set({ templateGalleryOpen: v }),
+  saveComponentOpen: false,
+  setSaveComponentOpen: (v) => set({ saveComponentOpen: v }),
+  componentLibraryOpen: false,
+  setComponentLibraryOpen: (v) => set({ componentLibraryOpen: v }),
 }));
 
 /** True on phones / tablets where the editor uses drawers. */

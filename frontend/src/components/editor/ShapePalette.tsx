@@ -1,6 +1,6 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useReactFlow, type Node } from "@xyflow/react";
-import { MousePointerClick } from "lucide-react";
+import { MousePointerClick, Package, Settings2 } from "lucide-react";
 import { Shape } from "./Shape";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/lib/store";
@@ -8,6 +8,8 @@ import { defaultNodeData, SHAPE_LIST, type ShapeNodeData, type ShapeType } from 
 import { uid } from "@/lib/id";
 import { useT } from "@/lib/i18n";
 import { ICON_MAP, ICON_PRESETS, TONES } from "./icons";
+import { componentBounds, useComponents, type ComponentDef } from "@/lib/components";
+import { useUi } from "@/lib/ui";
 
 interface Preset {
   key: string;
@@ -99,7 +101,28 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
   const center = useViewportCenter();
   const addShapeNode = useEditor((s) => s.addShapeNode);
   const addNode = useEditor((s) => s.addNode);
+  const insertFragment = useEditor((s) => s.insertFragment);
+  const components = useComponents((s) => s.components);
+  const grouped = useMemo(() => {
+    const map = new Map<string, ComponentDef[]>();
+    for (const c of components) {
+      const list = map.get(c.category) ?? [];
+      list.push(c);
+      map.set(c.category, list);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [components]);
   const cascade = useRef(0);
+
+  const insertAtCenter = (c: ComponentDef) => {
+    const pos = center();
+    const b = componentBounds(c);
+    insertFragment(c.nodes, c.edges, {
+      x: pos.x - (b.minX + b.w / 2),
+      y: pos.y - (b.minY + b.h / 2),
+    });
+    onAdded?.();
+  };
 
   // Offset successive click-adds so they don't stack on top of each other.
   const nextOffset = () => {
@@ -247,6 +270,58 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
             );
           })}
         </div>
+      </div>
+
+      <Separator />
+
+      <div className="p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("comp.my")}
+          </h3>
+          <button
+            type="button"
+            onClick={() => useUi.getState().setComponentLibraryOpen(true)}
+            title={t("comp.manage")}
+            className="text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Settings2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        {components.length === 0 ? (
+          <p className="text-[11px] leading-relaxed text-muted-foreground">{t("comp.emptyHint")}</p>
+        ) : (
+          <div className="space-y-3">
+            {grouped.map(([cat, list]) => (
+              <div key={cat}>
+                <div className="mb-1 text-[10px] font-medium text-muted-foreground">{cat}</div>
+                <div className="space-y-1">
+                  {list.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("application/diagram-kind", "component");
+                        e.dataTransfer.setData("application/diagram-value", c.id);
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onClick={() => insertAtCenter(c)}
+                      title={`${c.name} · ${t("comp.addHint")}`}
+                      className="flex w-full cursor-grab items-center gap-2 rounded-md border p-1.5 text-left transition-colors hover:bg-accent active:cursor-grabbing"
+                    >
+                      <Package className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-[11px]">{c.name}</span>
+                      <span className="ml-auto shrink-0 rounded bg-muted px-1 text-[9px] text-muted-foreground">
+                        {c.kind === "compound" ? t("comp.compound") : t("comp.single")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

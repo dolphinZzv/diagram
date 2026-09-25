@@ -268,3 +268,23 @@ describe("sequence helpers", () => {
     expect(edges[1].sourceHandle).toBe("r1");
   });
 });
+
+describe("insertFragment", () => {
+  it("clones with new ids, remaps edges and applies the delta", () => {
+    const fragNodes = [mkNode("a", 0, 0), mkNode("b", 100, 0)];
+    const fragEdges = [mkEdge("e", "a", "b")];
+    useEditor.getState().insertFragment(fragNodes, fragEdges, { x: 50, y: 60 });
+    const { nodes, edges } = useEditor.getState();
+    expect(nodes).toHaveLength(2);
+    expect(edges).toHaveLength(1);
+    expect(nodes[0].id).not.toBe("a");
+    expect(edges[0].source).toBe(nodes[0].id);
+    expect(edges[0].target).toBe(nodes[1].id);
+    expect(nodes[0].position).toEqual({ x: 50, y: 60 });
+  });
+
+  it("does nothing for an empty fragment", () => {
+    useEditor.getState().insertFragment([], [], { x: 0, y: 0 });
+    expect(useEditor.getState().nodes).toHaveLength(0);
+  });
+});

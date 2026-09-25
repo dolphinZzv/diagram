@@ -18,6 +18,7 @@ import { SHAPE_LIST } from "@/lib/types";
 import { TEMPLATES } from "@/lib/templates";
 import { DIAGRAM_PALETTES } from "@/lib/palettes";
 import { STYLE_PRESETS, presetStyle } from "@/lib/stylePresets";
+import { componentBounds, useComponents } from "@/lib/components";
 import { exportPNG, exportSVG, exportJSON, exportMermaid, copyImageToClipboard } from "@/lib/exporter";
 import { toMermaid } from "@/lib/mermaid";
 import { copyText } from "@/lib/clipboard";
@@ -93,6 +94,8 @@ export function CommandPalette() {
         const order = s.nodes.filter((n) => n.type !== "group").map((n) => n.id);
         if (order.length) useUi.getState().startPresentation(order);
       }),
+      add(t("command.actions"), t("comp.save"), () => useUi.getState().setSaveComponentOpen(true)),
+      add(t("command.actions"), t("comp.manage"), () => useUi.getState().setComponentLibraryOpen(true)),
       add(t("command.actions"), t("topbar.exportPng"), () => {
         void exportPNG(s.nodes, s.edges, s.meta.name || "diagram", theme);
       }),
@@ -153,7 +156,18 @@ export function CommandPalette() {
         });
       });
 
-    return [...actions, ...palettes, ...presets, ...shapes, ...templates, ...nodes];
+    const comps: Item[] = useComponents.getState().components.map((c) =>
+      add(t("comp.my"), c.name, () => {
+        const center = viewportCenter(screenToFlowPosition);
+        const b = componentBounds(c);
+        s.insertFragment(c.nodes, c.edges, {
+          x: center.x - (b.minX + b.w / 2),
+          y: center.y - (b.minY + b.h / 2),
+        });
+      })
+    );
+
+    return [...actions, ...palettes, ...presets, ...comps, ...shapes, ...templates, ...nodes];
   }, [t, screenToFlowPosition, fitView, zoomTo, setCenter, theme, setTheme, lang, setLang, toggleSketch]);
 
   const filtered = useMemo(() => {

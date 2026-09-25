@@ -9,54 +9,26 @@ import {
   SelectionMode,
   useReactFlow,
   type Node,
-  type Edge,
   type NodeChange,
   type EdgeChange,
   type OnSelectionChangeParams,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import {
-  Pencil,
-  Copy,
-  CopyPlus,
-  Trash2,
-  ChevronsUp,
-  ChevronsDown,
-  Group as GroupIcon,
-  Ungroup as UngroupIcon,
-  Lock as LockIcon,
-  LockOpen,
-  ClipboardPaste,
-  Maximize2,
-  ZoomIn,
-  MousePointer2,
-  CornerDownRight,
-  Plus,
-  Network,
-  LayoutDashboard,
-  Palette as PaletteIcon,
-  Send,
-  Sparkles,
-  Play,
-} from "lucide-react";
 import { nodeTypes, edgeTypes } from "./flow-types";
 import { useEditor } from "@/lib/store";
 import { ARCH_PRESETS, PRESET_SHAPES, buildIconNode } from "./ShapePalette";
 import { ICON_PRESETS } from "./icons";
+import { componentBounds, useComponents } from "@/lib/components";
 import { defaultNodeData, type ShapeType } from "@/lib/types";
 import { uid } from "@/lib/id";
 import { useTheme, canvasColors } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 import { isCompactLayout, useUi } from "@/lib/ui";
-import { toMermaid } from "@/lib/mermaid";
-import { DIAGRAM_PALETTES } from "@/lib/palettes";
-import { exportMermaid, copyImageToClipboard } from "@/lib/exporter";
-import { copyText } from "@/lib/clipboard";
-import { toast } from "@/lib/toast";
 import { ContextMenu, type CtxItem } from "./ContextMenu";
 import { ActionSheet } from "./ActionSheet";
 import { SequenceMessageDialog } from "./SequenceMessageDialog";
 import { PresentationBar } from "./PresentationBar";
+import { useSelectionMenu } from "./useSelectionMenu";
 import { HelperLines } from "./HelperLines";
 import { EmptyState } from "./EmptyState";
 
@@ -79,44 +51,6 @@ function nodeSize(n: Node): { w: number; h: number } {
 
 type MenuState = { x: number; y: number; kind: "node" | "edge" | "pane"; id?: string } | null;
 
-/** Order for presentation mode: topological, tie-broken by position. */
-function presentationOrder(nodes: Node[], edges: Edge[]): string[] {
-  const ids = new Set(nodes.filter((n) => n.type !== "group").map((n) => n.id));
-  const indeg = new Map<string, number>();
-  const adj = new Map<string, string[]>();
-  ids.forEach((id) => {
-    indeg.set(id, 0);
-    adj.set(id, []);
-  });
-  for (const e of edges) {
-    if (!ids.has(e.source) || !ids.has(e.target)) continue;
-    adj.get(e.source)!.push(e.target);
-    indeg.set(e.target, (indeg.get(e.target) ?? 0) + 1);
-  }
-  const posOf = (id: string) => nodes.find((n) => n.id === id)?.position ?? { x: 0, y: 0 };
-  const cmp = (a: string, b: string) => {
-    const pa = posOf(a);
-    const pb = posOf(b);
-    return pa.y - pb.y || pa.x - pb.x;
-  };
-  const queue = [...ids].filter((id) => (indeg.get(id) ?? 0) === 0).sort(cmp);
-  const out: string[] = [];
-  const seen = new Set<string>();
-  while (queue.length > 0) {
-    const id = queue.shift()!;
-    if (seen.has(id)) continue;
-    seen.add(id);
-    out.push(id);
-    for (const nx of adj.get(id) ?? []) {
-      indeg.set(nx, (indeg.get(nx) ?? 1) - 1);
-      if ((indeg.get(nx) ?? 0) <= 0) queue.push(nx);
-    }
-    queue.sort(cmp);
-  }
-  for (const id of [...ids].sort(cmp)) if (!seen.has(id)) out.push(id);
-  return out;
-}
-
 export function Canvas() {
   const nodes = useEditor((s) => s.nodes);
   const edges = useEditor((s) => s.edges);
@@ -127,13 +61,14 @@ export function Canvas() {
   const setSelection = useEditor((s) => s.setSelection);
   const addNode = useEditor((s) => s.addNode);
   const addShapeNode = useEditor((s) => s.addShapeNode);
+  const insertFragment = useEditor((s) => s.insertFragment);
   const theme = useTheme((s) => s.theme);
   const colors = canvasColors(theme);
   const t = useT();
   const selectMode = useUi((s) => s.selectMode);
   const compact = isCompactLayout();
 
-  const { screenToFlowPosition, getZoom, fitView, zoomTo, setCenter } = useReactFlow();
+  const { screenToFlowPosition, getZoom } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const [menu, setMenu] = useState<MenuState>(null);
@@ -198,9 +133,16 @@ export function Canvas() {
         const preset = ICON_PRESETS.find((p) => p.icon === value);
         const node = buildIconNode(value, preset ? t(preset.labelKey) : value, position);
         if (node) addNode(node);
+        return;
+      }
+      if (kind === "component") {
+        const def = useComponents.getState().components.find((c) => c.id === value);
+        if (!def) return;
+        const b = componentBounds(def);
+        insertFragment(def.nodes, def.edges, { x: position.x - b.minX, y: position.y - b.minY });
       }
     },
-    [addNode, addShapeNode, screenToFlowPosition, t]
+    [addNode, addShapeNode, insertFragment, screenToFlowPosition, t]
   );
 
   const onSelectionChange = useCallback(
@@ -374,136 +316,7 @@ export function Canvas() {
     window.addEventListener("pointercancel", cleanup);
   }, []);
 
-  const buildItems = useCallback(
-    (kind: "node" | "edge" | "pane", id?: string): (CtxItem | "separator")[] => {
-      const s = useEditor.getState();
-    const selection = id && s.selectedIds.includes(id) ? s.selectedIds : id ? [id] : [];
-    const select = () => {
-      if (id) s.setSelection([id]);
-    };
-
-    if (kind === "node" && id) {
-      const node = s.nodes.find((n) => n.id === id);
-      const locked = !!(node?.data as { locked?: boolean } | undefined)?.locked;
-      const idSet = new Set(selection);
-      const hasGroup = s.nodes.some((n) => idSet.has(n.id) && n.type === "group");
-      return [
-        { label: t("ctx.edit"), icon: <Pencil className="h-4 w-4" />, onClick: () => openInspector(id) },
-        "separator",
-        { label: t("ctx.copy"), icon: <Copy className="h-4 w-4" />, shortcut: "Ctrl C", onClick: () => { select(); s.copySelected(); } },
-        { label: t("ctx.duplicate"), icon: <CopyPlus className="h-4 w-4" />, shortcut: "Ctrl D", onClick: () => { select(); s.duplicateSelected(); } },
-        { label: t("ctx.delete"), icon: <Trash2 className="h-4 w-4" />, danger: true, shortcut: "Del", onClick: () => { select(); s.removeSelected(); } },
-        "separator",
-        { label: t("ctx.front"), icon: <ChevronsUp className="h-4 w-4" />, onClick: () => { select(); s.bringToFront(); } },
-        { label: t("ctx.back"), icon: <ChevronsDown className="h-4 w-4" />, onClick: () => { select(); s.sendToBack(); } },
-        "separator",
-        { label: t("ctx.group"), icon: <GroupIcon className="h-4 w-4" />, shortcut: "Ctrl G", onClick: () => { s.groupSelected(); } },
-        { label: t("ctx.ungroup"), icon: <UngroupIcon className="h-4 w-4" />, disabled: !hasGroup, onClick: () => s.ungroupSelected() },
-        { label: t("command.laneGroup"), icon: <GroupIcon className="h-4 w-4" />, onClick: () => s.groupSelected("lane") },
-        "separator",
-        { label: t("mindmap.addChild"), icon: <CornerDownRight className="h-4 w-4" />, shortcut: "Tab", onClick: () => { select(); s.addChildNode(id); } },
-        { label: t("mindmap.addSibling"), icon: <Plus className="h-4 w-4" />, shortcut: "Enter", onClick: () => { select(); s.addSiblingNode(id); } },
-        ...(node?.type === "lifeline"
-          ? [
-              {
-                label: t("seq.addMessage"),
-                icon: <Send className="h-4 w-4" />,
-                onClick: () => useUi.getState().openMessageDialog(id),
-              } as CtxItem,
-              { label: t("seq.addParticipant"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addParticipant() },
-            ]
-          : []),
-        "separator",
-        locked
-          ? { label: t("ctx.unlock"), icon: <LockOpen className="h-4 w-4" />, onClick: () => { select(); s.lockSelected(false); } }
-          : { label: t("ctx.lock"), icon: <LockIcon className="h-4 w-4" />, onClick: () => { select(); s.lockSelected(true); } },
-      ];
-    }
-
-    if (kind === "edge" && id) {
-      return [
-        { label: t("ctx.edit"), icon: <Pencil className="h-4 w-4" />, onClick: () => openInspector(id) },
-        "separator",
-        { label: t("ctx.delete"), icon: <Trash2 className="h-4 w-4" />, danger: true, shortcut: "Del", onClick: () => { select(); s.removeSelected(); } },
-      ];
-    }
-
-    return [
-      { label: t("ctx.paste"), icon: <ClipboardPaste className="h-4 w-4" />, shortcut: "Ctrl V", disabled: !s.clipboard, onClick: () => s.paste() },
-      { label: t("ctx.selectAll"), icon: <MousePointer2 className="h-4 w-4" />, shortcut: "Ctrl A", onClick: () => s.selectAll() },
-      "separator",
-      {
-        label: t("seq.addParticipant"),
-        icon: <Plus className="h-4 w-4" />,
-        onClick: () => {
-          s.addParticipant();
-          if (compact) useUi.getState().setInspectorOpen(true);
-        },
-      },
-      { label: t("command.addLane"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addLane() },
-      "separator",
-      { label: t("command.autoLayoutTB"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("TB") },
-      { label: t("command.autoLayoutLR"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("LR") },
-      { label: t("command.mindMap"), icon: <Network className="h-4 w-4" />, onClick: () => s.mindMapLayout() },
-      "separator",
-      ...Object.entries(DIAGRAM_PALETTES).map(([key, p]) => ({
-        label: `${t("command.palette")}: ${t(p.nameKey)}`,
-        icon: <PaletteIcon className="h-4 w-4" />,
-        onClick: () => s.restyleAll(key),
-      })),
-      "separator",
-      {
-        label: t("command.exportMermaid"),
-        onClick: () => exportMermaid(toMermaid(s.nodes, s.edges), s.meta.name || "diagram"),
-      },
-      {
-        label: t("command.copyMermaid"),
-        onClick: async () => {
-          const ok = await copyText(toMermaid(s.nodes, s.edges));
-          if (ok) toast.success(t("share.linkCopied"));
-        },
-      },
-      "separator",
-      {
-        label: t("present.start"),
-        icon: <Play className="h-4 w-4" />,
-        onClick: () => {
-          const order = presentationOrder(s.nodes, s.edges);
-          if (order.length === 0) return;
-          useUi.getState().startPresentation(order);
-          const first = s.nodes.find((n) => n.id === order[0]);
-          if (first) {
-            const w = (first.style?.width as number) || (first.data as { width?: number }).width || 120;
-            const h = (first.style?.height as number) || (first.data as { height?: number }).height || 60;
-            setCenter(first.position.x + w / 2, first.position.y + h / 2, { zoom: 1.3, duration: 400 });
-          }
-        },
-      },
-      "separator",
-      {
-        label: t("command.beautify"),
-        icon: <Sparkles className="h-4 w-4" />,
-        onClick: () => s.beautify("ocean"),
-      },
-      {
-        label: t("command.sketch"),
-        icon: <Pencil className="h-4 w-4" />,
-        onClick: () => useUi.getState().toggleSketch(),
-      },
-      {
-        label: t("command.copyImage"),
-        onClick: async () => {
-          const r = await copyImageToClipboard(s.nodes, s.edges, theme);
-          toast.success(r === "copied" ? t("command.imageCopied") : t("topbar.exportedImage", { format: "PNG" }));
-        },
-      },
-      "separator",
-      { label: t("ctx.fitView"), icon: <Maximize2 className="h-4 w-4" />, onClick: () => fitView({ padding: 0.25 }) },
-      { label: t("ctx.zoomReset"), icon: <ZoomIn className="h-4 w-4" />, onClick: () => zoomTo(1) },
-    ];
-    },
-    [t, openInspector, fitView, zoomTo]
-  );
+  const buildItems = useSelectionMenu();
 
   const menuItems = useMemo<(CtxItem | "separator")[]>(
     () => (menu ? buildItems(menu.kind, menu.id) : []),
