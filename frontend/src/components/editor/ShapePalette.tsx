@@ -63,7 +63,7 @@ function useViewportCenter() {
   };
 }
 
-export function ShapePalette() {
+export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
   const center = useViewportCenter();
   const addShapeNode = useEditor((s) => s.addShapeNode);
   const addNode = useEditor((s) => s.addNode);
@@ -87,6 +87,7 @@ export function ShapePalette() {
     const pos = center();
     const off = nextOffset();
     addShapeNode(shape, { x: pos.x - data.width / 2 + off, y: pos.y - data.height / 2 + off });
+    onAdded?.();
   };
 
   const addPreset = (key: string) => {
@@ -110,6 +111,7 @@ export function ShapePalette() {
       style: { width: data.width, height: data.height },
       selected: true,
     });
+    onAdded?.();
   };
 
   return (

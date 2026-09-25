@@ -100,3 +100,49 @@
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* ---------- Mobile / touch ---------- */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  overscroll-behavior: none;
+}
+
+button,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+/* Larger touch targets for node handles / resize grips on touch devices */
+@media (pointer: coarse) {
+  .react-flow__handle {
+    width: 16px;
+    height: 16px;
+  }
+  .react-flow__resize-control.handle {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+}
+
+/* Keep canvas chrome clear of the floating mobile toolbar */
+@media (max-width: 1023px) {
+  .react-flow__minimap {
+    display: none;
+  }
+  .react-flow__controls {
+    bottom: 5.5rem;
+  }
+}

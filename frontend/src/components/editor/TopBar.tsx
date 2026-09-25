@@ -132,20 +132,20 @@ export function TopBar() {
   useShortcuts(() => onSave(false));
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background px-3">
-      <div className="flex items-center gap-2">
+    <header className="no-scrollbar flex h-14 shrink-0 items-center gap-2 overflow-x-auto border-b bg-background px-3 sm:gap-3">
+      <div className="flex shrink-0 items-center gap-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Workflow className="h-4 w-4" />
         </div>
         <span className="hidden text-sm font-semibold sm:block">Diagram</span>
       </div>
 
-      <div className="mx-2 h-6 w-px bg-border" />
+      <div className="mx-2 h-6 w-px shrink-0 bg-border" />
 
       <Input
         value={meta.name}
         onChange={(e) => setMeta({ name: e.target.value, saved: false })}
-        className="h-8 w-44 border-transparent bg-transparent text-sm font-medium hover:border-input focus-visible:border-input"
+        className="h-8 w-28 shrink-0 border-transparent bg-transparent text-sm font-medium hover:border-input focus-visible:border-input sm:w-44"
       />
       <span
         className={cn(
@@ -162,7 +162,7 @@ export function TopBar() {
         {meta.saving ? "保存中…" : meta.saved ? "已保存" : "未保存"}
       </span>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8" disabled={past.length === 0} onClick={undo}>
