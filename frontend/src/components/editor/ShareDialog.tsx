@@ -14,7 +14,7 @@ import { api, type ShareState } from "@/lib/api";
 import { useEditor } from "@/lib/store";
 import { useT } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
-import { dataUrlToBlob, renderImage } from "@/lib/exporter";
+import { renderSvg, svgToPngBlob } from "@/lib/exporter";
 import { toast } from "@/lib/toast";
 
 interface Props {
@@ -79,6 +79,7 @@ export function ShareDialog({ open, onOpenChange }: Props) {
   const theme = useTheme((s) => s.theme);
   const metaId = useEditor((s) => s.meta.id);
   const nodes = useEditor((s) => s.nodes);
+  const edges = useEditor((s) => s.edges);
 
   const [share, setShare] = useState<ShareState>({ enabled: false, token: "" });
   const [loading, setLoading] = useState(false);
@@ -154,12 +155,14 @@ export function ShareDialog({ open, onOpenChange }: Props) {
     if (!metaId || !share.token) return;
     setGenBusy(true);
     try {
-      const [svgData, pngData] = await Promise.all([
-        renderImage(nodes, "svg", theme, 1),
-        renderImage(nodes, "png", theme, 2),
-      ]);
-      await api.uploadShareImage(metaId, "svg", await dataUrlToBlob(svgData));
-      await api.uploadShareImage(metaId, "png", await dataUrlToBlob(pngData));
+      const svg = renderSvg(nodes, edges, theme);
+      await api.uploadShareImage(
+        metaId,
+        "svg",
+        new Blob([svg], { type: "image/svg+xml;charset=utf-8" })
+      );
+      const png = await svgToPngBlob(svg, 2);
+      await api.uploadShareImage(metaId, "png", png);
       setImages({ svg: true, png: true });
       toast.success(t("share.imageGenerated"));
     } catch (e) {
@@ -167,7 +170,7 @@ export function ShareDialog({ open, onOpenChange }: Props) {
     } finally {
       setGenBusy(false);
     }
-  }, [metaId, share.token, nodes, theme, t]);
+  }, [metaId, share.token, nodes, edges, theme, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

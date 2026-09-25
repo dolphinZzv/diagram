@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { nodeTypes, edgeTypes } from "./flow-types";
 import { normalizeEdges, normalizeNodes } from "@/lib/doc";
 import { api, type SharedDiagram } from "@/lib/api";
-import { exportImage } from "@/lib/exporter";
+import { exportPNG, exportSVG } from "@/lib/exporter";
 import { useT } from "@/lib/i18n";
 import { useTheme, canvasColors } from "@/lib/theme";
 
@@ -42,14 +42,20 @@ function Viewer({ doc }: { doc: SharedDiagram }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => exportImage(nodes, "svg", doc.name || "diagram", theme).catch(() => undefined)}
+            onClick={() => {
+              try {
+                exportSVG(nodes, edges, doc.name || "diagram", theme);
+              } catch {
+                /* ignore */
+              }
+            }}
           >
             <ImageIcon className="h-4 w-4" /> SVG
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => exportImage(nodes, "png", doc.name || "diagram", theme).catch(() => undefined)}
+            onClick={() => exportPNG(nodes, edges, doc.name || "diagram", theme).catch(() => undefined)}
           >
             <Download className="h-4 w-4" /> PNG
           </Button>

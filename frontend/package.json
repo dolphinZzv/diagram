@@ -26,7 +26,6 @@
     "@xyflow/react": "^12.4.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "html-to-image": "^1.11.13",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -35,8 +34,8 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.2.0",
     "@testing-library/dom": "^10.4.0",
+    "@testing-library/react": "^16.2.0",
     "@types/node": "^22.13.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",

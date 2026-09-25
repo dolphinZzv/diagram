@@ -1,65 +1,79 @@
-import { toPng, toSvg } from "html-to-image";
-import { getNodesBounds, getViewportForBounds, type Node } from "@xyflow/react";
-import { canvasColors, type Theme } from "./theme";
+import type { Edge, Node } from "@xyflow/react";
+import { diagramToSvg } from "./svgExport";
+import type { Theme } from "./theme";
 
-function download(dataUrl: string, filename: string) {
+function download(url: string, filename: string) {
   const a = document.createElement("a");
-  a.href = dataUrl;
+  a.href = url;
   a.download = filename;
   a.click();
 }
 
-function getViewportEl(): HTMLElement {
-  const el = document.querySelector(".react-flow__viewport") as HTMLElement | null;
-  if (!el) throw new Error("viewport not found");
-  return el;
+function svgBlob(svg: string): Blob {
+  return new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
 }
 
-/** Renders the current canvas to a data URL (does not download). */
-export async function renderImage(
-  nodes: Node[],
-  format: "png" | "svg",
-  theme: Theme = "light",
-  scale = 2
-): Promise<string> {
+/** Renders the diagram to a self-contained vector SVG string. */
+export function renderSvg(nodes: Node[], edges: Edge[], theme: Theme = "light"): string {
   if (nodes.length === 0) throw new Error("empty canvas");
-  const viewport = getViewportEl();
-  const bounds = getNodesBounds(nodes);
-  const padding = 60;
-  const width = Math.max(bounds.width + padding * 2, 200);
-  const height = Math.max(bounds.height + padding * 2, 200);
-  const transform = getViewportForBounds(bounds, width, height, 0.1, 4, padding);
-
-  const options = {
-    backgroundColor: canvasColors(theme).exportBg,
-    width,
-    height,
-    style: {
-      width: `${width}px`,
-      height: `${height}px`,
-      transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
-    },
-    pixelRatio: format === "png" ? scale : 1,
-  };
-
-  return format === "png" ? toPng(viewport, options) : toSvg(viewport, options);
+  return diagramToSvg(nodes, edges, { theme });
 }
 
-export async function exportImage(
+/** Rasterises an SVG string to a PNG blob via canvas. */
+export function svgToPngBlob(svg: string, scale = 2): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(svgBlob(svg));
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(Math.round(w * scale), 1);
+        canvas.height = Math.max(Math.round(h * scale), 1);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("canvas 2d context unavailable");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => {
+            URL.revokeObjectURL(url);
+            if (blob) resolve(blob);
+            else reject(new Error("canvas.toBlob failed"));
+          },
+          "image/png"
+        );
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("failed to load svg"));
+    };
+    img.src = url;
+  });
+}
+
+export function exportSVG(nodes: Node[], edges: Edge[], filename = "diagram", theme: Theme = "light"): void {
+  const svg = renderSvg(nodes, edges, theme);
+  const url = URL.createObjectURL(svgBlob(svg));
+  download(url, `${filename}.svg`);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function exportPNG(
   nodes: Node[],
-  format: "png" | "svg",
+  edges: Edge[],
   filename = "diagram",
   theme: Theme = "light",
   scale = 2
 ): Promise<void> {
-  const dataUrl = await renderImage(nodes, format, theme, scale);
-  download(dataUrl, `${filename}.${format}`);
-}
-
-/** Converts a data URL to a Blob (used for uploading share images). */
-export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const res = await fetch(dataUrl);
-  return res.blob();
+  const svg = renderSvg(nodes, edges, theme);
+  const blob = await svgToPngBlob(svg, scale);
+  const url = URL.createObjectURL(blob);
+  download(url, `${filename}.png`);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function exportJSON(data: unknown, filename = "diagram") {

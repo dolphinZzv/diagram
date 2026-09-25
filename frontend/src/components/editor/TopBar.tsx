@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditor } from "@/lib/store";
-import { exportImage, exportJSON, readJSONFile } from "@/lib/exporter";
+import { exportPNG, exportSVG, exportJSON, readJSONFile } from "@/lib/exporter";
 import { parseDiagramFile, serializeDoc } from "@/lib/doc";
 import { TEMPLATES } from "@/lib/templates";
 import { useReactFlow } from "@xyflow/react";
@@ -149,13 +149,15 @@ export function TopBar() {
   const onExportImage = useCallback(
     async (format: "png" | "svg") => {
       try {
-        await exportImage(nodes, format, meta.name || "diagram", theme);
+        const name = meta.name || "diagram";
+        if (format === "png") await exportPNG(nodes, edges, name, theme);
+        else exportSVG(nodes, edges, name, theme);
         toast.success(t("topbar.exportedImage", { format: format.toUpperCase() }));
       } catch (e) {
         toast.error(t("topbar.exportFail"), String(e));
       }
     },
-    [nodes, meta.name, t, theme]
+    [nodes, edges, meta.name, t, theme]
   );
 
   const onClear = useCallback(() => {
