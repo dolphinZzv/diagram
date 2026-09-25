@@ -18,6 +18,7 @@ import {
   MoreHorizontal,
   Sun,
   Moon,
+  Keyboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ import { toast } from "@/lib/toast";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
+import { useUi } from "@/lib/ui";
 import { OpenDialog } from "./OpenDialog";
 import { VersionHistory } from "./VersionHistory";
 import { ShareDialog } from "./ShareDialog";
@@ -366,6 +368,9 @@ export function TopBar() {
             </DropdownMenuSub>
 
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => useUi.getState().setShortcutsOpen(true)}>
+              <Keyboard className="h-4 w-4" /> {t("shortcuts.menu")}
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={toggleTheme}>
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />} {t("theme.toggle")}
             </DropdownMenuItem>

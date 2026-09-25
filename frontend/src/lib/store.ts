@@ -28,6 +28,7 @@ interface EditorState {
   meta: DiagramMeta;
   selected: string | null;
   selectedIds: string[];
+  clipboard: { nodes: Node[]; edges: Edge[] } | null;
   past: { nodes: Node[]; edges: Edge[] }[];
   future: { nodes: Node[]; edges: Edge[] }[];
 
@@ -48,6 +49,22 @@ interface EditorState {
   addShapeNode: (shape: ShapeNodeData["shape"], position: { x: number; y: number }) => void;
   removeSelected: () => void;
   duplicateSelected: () => void;
+  copySelected: () => void;
+  paste: () => void;
+  selectAll: () => void;
+
+  setLocked: (id: string, locked: boolean) => void;
+  lockSelected: (locked: boolean) => void;
+  setNodeDimensions: (id: string, width: number, height: number) => void;
+
+  groupSelected: () => void;
+  ungroupSelected: () => void;
+
+  bringToFront: () => void;
+  sendToBack: () => void;
+  bringForward: () => void;
+  sendBackward: () => void;
+
   alignNodes: (mode: AlignMode) => void;
   distributeNodes: (axis: "horizontal" | "vertical") => void;
 
@@ -67,7 +84,7 @@ function nodeWidth(n: Node): number {
   if (typeof n.width === "number" && n.width) return n.width;
   const styleW = n.style?.width;
   if (typeof styleW === "number" && styleW) return styleW;
-  return data.width ?? 160;
+  return data.width ?? 120;
 }
 
 function nodeHeight(n: Node): number {
@@ -76,7 +93,7 @@ function nodeHeight(n: Node): number {
   if (typeof n.height === "number" && n.height) return n.height;
   const styleH = n.style?.height;
   if (typeof styleH === "number" && styleH) return styleH;
-  return data.height ?? 80;
+  return data.height ?? 60;
 }
 
 export const useEditor = create<EditorState>((set, get) => ({
@@ -85,6 +102,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   meta: { id: null, name: "未命名流程图", description: "", saved: true, saving: false },
   selected: null,
   selectedIds: [],
+  clipboard: null,
   past: [],
   future: [],
 
@@ -196,6 +214,11 @@ export const useEditor = create<EditorState>((set, get) => ({
     if (selectedIds.length === 0) return;
     pushHistory();
     const idSet = new Set(selectedIds);
+    // Also drop children of removed groups.
+    const orphaned = new Set(
+      nodes.filter((n) => n.parentId && idSet.has(n.parentId)).map((n) => n.id)
+    );
+    for (const id of orphaned) idSet.add(id);
     set({
       nodes: nodes.filter((n) => !idSet.has(n.id)),
       edges: edges.filter((e) => !idSet.has(e.id) && !idSet.has(e.source) && !idSet.has(e.target)),
@@ -206,40 +229,224 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   duplicateSelected: () => {
-    const { nodes, edges, selectedIds, pushHistory } = get();
-    const selectedNodes = nodes.filter((n) => selectedIds.includes(n.id));
-    if (selectedNodes.length === 0) return;
+    const { copySelected, paste } = get();
+    copySelected();
+    paste();
+  },
+
+  copySelected: () => {
+    const { nodes, edges, selectedIds } = get();
+    const sel = new Set(selectedIds);
+    const selNodes = nodes.filter((n) => sel.has(n.id));
+    if (selNodes.length === 0) return;
+    // Include group children so a copied group keeps its contents.
+    const groups = new Set(selNodes.filter((n) => n.type === "group").map((n) => n.id));
+    const expanded = new Set(selNodes.map((n) => n.id));
+    for (const n of nodes) if (n.parentId && groups.has(n.parentId)) expanded.add(n.id);
+    const copyNodes = nodes.filter((n) => expanded.has(n.id)).map((n) => ({ ...n }));
+    const copyEdges = edges
+      .filter((e) => expanded.has(e.source) && expanded.has(e.target))
+      .map((e) => ({ ...e }));
+    set({ clipboard: { nodes: copyNodes, edges: copyEdges } });
+  },
+
+  paste: () => {
+    const { clipboard, nodes, edges, pushHistory } = get();
+    if (!clipboard || clipboard.nodes.length === 0) return;
     pushHistory();
-
+    const offset = 40;
     const idMap = new Map<string, string>();
-    const clones: Node[] = selectedNodes.map((src) => {
-      const id = uid("n_");
-      idMap.set(src.id, id);
-      return {
-        ...src,
-        id,
-        position: { x: src.position.x + 40, y: src.position.y + 40 },
-        selected: true,
-        data: { ...src.data },
-      };
-    });
-
-    // Duplicate edges whose both endpoints are part of the selection.
-    const edgeClones: Edge[] = edges
-      .filter((e) => idMap.has(e.source) && idMap.has(e.target))
-      .map((e) => ({
-        ...e,
-        id: uid("e_"),
-        source: idMap.get(e.source)!,
-        target: idMap.get(e.target)!,
-        selected: false,
-      }));
-
+    for (const n of clipboard.nodes) {
+      idMap.set(n.id, uid(n.type === "group" ? "g_" : "n_"));
+    }
+    const clones: Node[] = clipboard.nodes.map((n) => ({
+      ...n,
+      id: idMap.get(n.id)!,
+      parentId: n.parentId ? idMap.get(n.parentId) : undefined,
+      position: { x: n.position.x + offset, y: n.position.y + offset },
+      selected: true,
+    }));
+    const edgeClones: Edge[] = clipboard.edges.map((e) => ({
+      ...e,
+      id: uid("e_"),
+      source: idMap.get(e.source) ?? e.source,
+      target: idMap.get(e.target) ?? e.target,
+      selected: false,
+    }));
     set({
       nodes: [...nodes.map((n) => ({ ...n, selected: false })), ...clones],
       edges: [...edges, ...edgeClones],
       selectedIds: clones.map((c) => c.id),
       selected: clones.length === 1 ? clones[0].id : null,
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  selectAll: () => {
+    const { nodes, edges } = get();
+    set({ selectedIds: [...nodes.map((n) => n.id), ...edges.map((e) => e.id)], selected: null });
+  },
+
+  setLocked: (id, locked) => {
+    const { nodes, pushHistory } = get();
+    pushHistory();
+    set({
+      nodes: nodes.map((n) =>
+        n.id === id
+          ? { ...n, draggable: !locked, connectable: !locked, data: { ...n.data, locked } }
+          : n
+      ),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  lockSelected: (locked) => {
+    const { nodes, selectedIds, pushHistory } = get();
+    const sel = new Set(selectedIds);
+    if (sel.size === 0) return;
+    pushHistory();
+    set({
+      nodes: nodes.map((n) =>
+        sel.has(n.id)
+          ? { ...n, draggable: !locked, connectable: !locked, data: { ...n.data, locked } }
+          : n
+      ),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  setNodeDimensions: (id, width, height) => {
+    const { nodes } = get();
+    set({
+      nodes: nodes.map((n) =>
+        n.id === id
+          ? {
+              ...n,
+              width,
+              height,
+              style: { ...n.style, width, height },
+              data: { ...n.data, width, height },
+            }
+          : n
+      ),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  groupSelected: () => {
+    const { nodes, selectedIds, pushHistory } = get();
+    const children = nodes.filter(
+      (n) => selectedIds.includes(n.id) && n.type !== "group" && !n.parentId
+    );
+    if (children.length === 0) return;
+    pushHistory();
+
+    const pad = 28;
+    const header = 28;
+    const minX = Math.min(...children.map((n) => n.position.x));
+    const minY = Math.min(...children.map((n) => n.position.y));
+    const maxX = Math.max(...children.map((n) => n.position.x + nodeWidth(n)));
+    const maxY = Math.max(...children.map((n) => n.position.y + nodeHeight(n)));
+    const gx = minX - pad;
+    const gy = minY - pad - header;
+    const gw = maxX - minX + pad * 2;
+    const gh = maxY - minY + pad * 2 + header;
+
+    const gid = uid("g_");
+    const group: Node = {
+      id: gid,
+      type: "group",
+      position: { x: gx, y: gy },
+      data: { label: "" },
+      style: { width: gw, height: gh },
+      zIndex: 0,
+      selectable: true,
+      draggable: true,
+      connectable: false,
+      selected: true,
+    };
+    const childSet = new Set(children.map((n) => n.id));
+    const rest = nodes.map((n) =>
+      childSet.has(n.id)
+        ? {
+            ...n,
+            parentId: gid,
+            extent: "parent" as const,
+            position: { x: n.position.x - gx, y: n.position.y - gy },
+            selected: false,
+          }
+        : { ...n, selected: false }
+    );
+    set({ nodes: [group, ...rest], selectedIds: [gid], selected: gid, meta: { ...get().meta, saved: false } });
+  },
+
+  ungroupSelected: () => {
+    const { nodes, selectedIds, pushHistory } = get();
+    const groups = nodes.filter((n) => selectedIds.includes(n.id) && n.type === "group");
+    if (groups.length === 0) return;
+    pushHistory();
+    const groupMap = new Map(groups.map((g) => [g.id, g]));
+    const out: Node[] = [];
+    for (const n of nodes) {
+      if (groupMap.has(n.id)) continue;
+      if (n.parentId && groupMap.has(n.parentId)) {
+        const g = groupMap.get(n.parentId)!;
+        const nn: Node = {
+          ...n,
+          position: { x: n.position.x + g.position.x, y: n.position.y + g.position.y },
+        };
+        delete (nn as { parentId?: string }).parentId;
+        delete (nn as { extent?: unknown }).extent;
+        out.push(nn);
+      } else {
+        out.push(n);
+      }
+    }
+    set({ nodes: out, selectedIds: [], selected: null, meta: { ...get().meta, saved: false } });
+  },
+
+  bringToFront: () => {
+    const { nodes, selectedIds, pushHistory } = get();
+    const sel = nodes.filter((n) => selectedIds.includes(n.id));
+    if (sel.length === 0) return;
+    pushHistory();
+    const maxZ = nodes.reduce((m, n) => Math.max(m, n.zIndex ?? 0), 0);
+    const ordered = [...sel].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+    const map = new Map<string, number>();
+    ordered.forEach((n, i) => map.set(n.id, maxZ + 1 + i));
+    set({ nodes: nodes.map((n) => (map.has(n.id) ? { ...n, zIndex: map.get(n.id) } : n)), meta: { ...get().meta, saved: false } });
+  },
+
+  sendToBack: () => {
+    const { nodes, selectedIds, pushHistory } = get();
+    const sel = nodes.filter((n) => selectedIds.includes(n.id));
+    if (sel.length === 0) return;
+    pushHistory();
+    const minZ = nodes.reduce((m, n) => Math.min(m, n.zIndex ?? 0), 0);
+    const ordered = [...sel].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+    const map = new Map<string, number>();
+    ordered.forEach((n, i) => map.set(n.id, minZ - ordered.length + i));
+    set({ nodes: nodes.map((n) => (map.has(n.id) ? { ...n, zIndex: map.get(n.id) } : n)), meta: { ...get().meta, saved: false } });
+  },
+
+  bringForward: () => {
+    const { nodes, selectedIds, pushHistory } = get();
+    if (!selectedIds.some((id) => nodes.find((n) => n.id === id))) return;
+    pushHistory();
+    const sel = new Set(selectedIds);
+    set({
+      nodes: nodes.map((n) => (sel.has(n.id) ? { ...n, zIndex: (n.zIndex ?? 0) + 1 } : n)),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  sendBackward: () => {
+    const { nodes, selectedIds, pushHistory } = get();
+    if (!selectedIds.some((id) => nodes.find((n) => n.id === id))) return;
+    pushHistory();
+    const sel = new Set(selectedIds);
+    set({
+      nodes: nodes.map((n) => (sel.has(n.id) ? { ...n, zIndex: (n.zIndex ?? 0) - 1 } : n)),
       meta: { ...get().meta, saved: false },
     });
   },

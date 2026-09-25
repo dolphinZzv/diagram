@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Github, Info, KeyRound, Languages, Moon, RefreshCw, Settings, Sun } from "lucide-react";
+import { Github, Info, KeyRound, Languages, Moon, RefreshCw, Settings, Sun, Keyboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import {
 import { getToken, setToken } from "@/lib/api";
 import { useI18n, useT } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
+import { useUi } from "@/lib/ui";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ export function AboutMenu() {
   const setLang = useI18n((s) => s.setLang);
   const theme = useTheme((s) => s.theme);
   const setTheme = useTheme((s) => s.setTheme);
+  const setShortcutsOpen = useUi((s) => s.setShortcutsOpen);
 
   const [info, setInfo] = useState<VersionInfo | null>(null);
   const [checking, setChecking] = useState(false);
@@ -167,6 +169,9 @@ export function AboutMenu() {
         </div>
 
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setShortcutsOpen(true)}>
+          <Keyboard className="h-4 w-4" /> {t("shortcuts.menu")}
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={checkUpdate} disabled={checking}>
           <RefreshCw className={cn("h-4 w-4", checking && "animate-spin")} /> {t("about.checkUpdate")}
         </DropdownMenuItem>

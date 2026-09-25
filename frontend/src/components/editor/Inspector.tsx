@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { Bold, Italic, RotateCw, Trash2, X, Copy } from "lucide-react";
+import { Bold, Italic, RotateCw, Trash2, X, Copy, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Group, Ungroup, Lock, LockOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -161,6 +161,11 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
   const update = useEditor((s) => s.updateNodeData);
   const remove = useEditor((s) => s.removeSelected);
   const setSelected = useEditor((s) => s.setSelected);
+  const setLocked = useEditor((s) => s.setLocked);
+  const bringToFront = useEditor((s) => s.bringToFront);
+  const sendToBack = useEditor((s) => s.sendToBack);
+  const bringForward = useEditor((s) => s.bringForward);
+  const sendBackward = useEditor((s) => s.sendBackward);
 
   return (
     <div className="flex h-full flex-col">
@@ -260,6 +265,30 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
         <Button variant="outline" size="sm" className="h-8 w-full" onClick={() => update(id, { rotation: 0 })}>
           <RotateCw className="h-3.5 w-3.5" /> {t("inspector.resetAngle")}
         </Button>
+
+        <Separator />
+
+        <div className="flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">{t("inspector.lock")}</Label>
+          <Switch checked={!!data.locked} onCheckedChange={(v) => setLocked(id, v)} />
+        </div>
+
+        <Row label={t("inspector.layer")}>
+          <div className="grid grid-cols-2 gap-1">
+            <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={bringToFront}>
+              <ChevronsUp className="h-3.5 w-3.5" /> {t("inspector.layerFront")}
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={bringForward}>
+              <ChevronUp className="h-3.5 w-3.5" /> {t("inspector.layerForward")}
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={sendBackward}>
+              <ChevronDown className="h-3.5 w-3.5" /> {t("inspector.layerBackward")}
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={sendToBack}>
+              <ChevronsDown className="h-3.5 w-3.5" /> {t("inspector.layerBack")}
+            </Button>
+          </div>
+        </Row>
 
         <Separator />
 
@@ -443,6 +472,13 @@ function MultiInspector() {
   const remove = useEditor((s) => s.removeSelected);
   const duplicate = useEditor((s) => s.duplicateSelected);
   const setSelection = useEditor((s) => s.setSelection);
+  const groupSelected = useEditor((s) => s.groupSelected);
+  const ungroupSelected = useEditor((s) => s.ungroupSelected);
+  const lockSelected = useEditor((s) => s.lockSelected);
+  const bringToFront = useEditor((s) => s.bringToFront);
+  const sendToBack = useEditor((s) => s.sendToBack);
+  const bringForward = useEditor((s) => s.bringForward);
+  const sendBackward = useEditor((s) => s.sendBackward);
 
   const nodeIds = useMemo(() => nodes.filter((n) => selectedIds.includes(n.id)).map((n) => n.id), [nodes, selectedIds]);
   const edgeIds = useMemo(() => edges.filter((e) => selectedIds.includes(e.id)).map((e) => e.id), [edges, selectedIds]);
@@ -508,6 +544,48 @@ function MultiInspector() {
               </Tabs>
             </Row>
             <ArrowSelect label={t("inspector.endArrow")} value="arrowclosed" onChange={(v) => updateManyEdges(edgeIds, { arrowType: v })} />
+          </>
+        )}
+
+        {hasNodes && (
+          <>
+            <Separator />
+            <Row label={t("inspector.group")}>
+              <div className="grid grid-cols-2 gap-1">
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={groupSelected}>
+                  <Group className="h-3.5 w-3.5" /> {t("inspector.group")}
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={ungroupSelected}>
+                  <Ungroup className="h-3.5 w-3.5" /> {t("inspector.ungroup")}
+                </Button>
+              </div>
+            </Row>
+            <Row label={t("inspector.lock")}>
+              <div className="grid grid-cols-2 gap-1">
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={() => lockSelected(true)}>
+                  <Lock className="h-3.5 w-3.5" /> {t("inspector.lock")}
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={() => lockSelected(false)}>
+                  <LockOpen className="h-3.5 w-3.5" /> {t("inspector.unlock")}
+                </Button>
+              </div>
+            </Row>
+            <Row label={t("inspector.layer")}>
+              <div className="grid grid-cols-2 gap-1">
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={bringToFront}>
+                  <ChevronsUp className="h-3.5 w-3.5" /> {t("inspector.layerFront")}
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={bringForward}>
+                  <ChevronUp className="h-3.5 w-3.5" /> {t("inspector.layerForward")}
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={sendBackward}>
+                  <ChevronDown className="h-3.5 w-3.5" /> {t("inspector.layerBackward")}
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 text-[11px]" onClick={sendToBack}>
+                  <ChevronsDown className="h-3.5 w-3.5" /> {t("inspector.layerBack")}
+                </Button>
+              </div>
+            </Row>
           </>
         )}
 

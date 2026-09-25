@@ -89,6 +89,12 @@ func main() {
 				log.Fatalf("update failed: %v", err)
 			}
 			return
+		case "mcp":
+			dbPath := envOr("DIAGRAM_DB", defaultDBPath())
+			if err := runMCPServer(dbPath); err != nil {
+				log.Fatalf("mcp server: %v", err)
+			}
+			return
 		case "help", "--help", "-h":
 			printHelp()
 			return
@@ -124,6 +130,7 @@ func main() {
 	}
 	log.Printf("diagram server %s listening on %s (db: %s)", version, *addr, *dbPath)
 	log.Printf("open: http://localhost:%s", portOf(*addr))
+	log.Printf("mcp:  http://localhost:%s/mcp (Streamable HTTP)", portOf(*addr))
 	srv := &http.Server{
 		Addr:              *addr,
 		Handler:           handler,
@@ -179,6 +186,11 @@ func newRouter(store *Store) http.Handler {
 	// Frontend (embedded at build time; falls back to disk during dev).
 	mux.Handle("/", spaHandler())
 
+	// MCP over HTTP (Streamable HTTP) so remote agents can edit diagrams.
+	mcpSrv := &mcpServer{store: store}
+	mux.Handle("/mcp", authMiddleware(mcpHTTPHandler(mcpSrv)))
+	mux.Handle("/mcp/", authMiddleware(mcpHTTPHandler(mcpSrv)))
+
 	return loggingMiddleware(corsMiddleware(rateLimitMiddleware(newRateLimiter(rateLimitFromEnv()))(mux)))
 }
 
@@ -191,6 +203,7 @@ func printHelp() {
   diagram -addr 127.0.0.1:8080 仅本机访问
   diagram -db /path            指定数据库文件
   diagram update               检查并更新到最新版本
+  diagram mcp                  以 MCP server 模式运行 (stdio, 供 AI Agent 调用)
   diagram version              查看当前版本
   diagram help                 查看帮助
 

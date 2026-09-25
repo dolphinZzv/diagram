@@ -31,6 +31,8 @@ export interface ShapeNodeData extends Record<string, unknown> {
   radius: number;
   fontWeight: string;
   fontStyle: string;
+  /** when true the node cannot be moved, resized or connected */
+  locked: boolean;
 }
 
 export interface EdgeData extends Record<string, unknown> {
@@ -101,6 +103,7 @@ export function defaultNodeData(shape: ShapeType = "rect"): ShapeNodeData {
     radius: 8,
     fontWeight: "normal",
     fontStyle: "normal",
+    locked: false,
   };
   if (shape === "ellipse") {
     base.width = 110;

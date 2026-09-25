@@ -18,6 +18,7 @@ function reset() {
     edges: [],
     selected: null,
     selectedIds: [],
+    clipboard: null,
     past: [],
     future: [],
     meta: { id: null, name: "test", description: "", saved: true, saving: false },
@@ -144,5 +145,93 @@ describe("loadDoc", () => {
     expect(s.past).toHaveLength(0);
     expect(s.future).toHaveLength(0);
     expect(s.selectedIds).toEqual([]);
+  });
+});
+
+describe("grouping", () => {
+  it("creates a group node and reparents the selection", () => {
+    useEditor.setState({ nodes: [mkNode("a", 0, 0), mkNode("b", 200, 0)], selectedIds: ["a", "b"] });
+    useEditor.getState().groupSelected();
+    const { nodes } = useEditor.getState();
+    const group = nodes.find((n) => n.type === "group");
+    expect(group).toBeTruthy();
+    expect(nodes[0].type).toBe("group"); // parent must come first
+    const a = nodes.find((n) => n.id === "a")!;
+    expect(a.parentId).toBe(group!.id);
+    expect(a.extent).toBe("parent");
+    expect(a.position.x).toBeGreaterThanOrEqual(0);
+  });
+
+  it("ungroups and restores absolute positions", () => {
+    useEditor.setState({ nodes: [mkNode("a", 0, 0), mkNode("b", 200, 0)], selectedIds: ["a", "b"] });
+    useEditor.getState().groupSelected();
+    const group = useEditor.getState().nodes.find((n) => n.type === "group")!;
+    useEditor.setState({ selectedIds: [group.id] });
+    useEditor.getState().ungroupSelected();
+    const nodes = useEditor.getState().nodes;
+    expect(nodes.find((n) => n.type === "group")).toBeUndefined();
+    expect(nodes.find((n) => n.id === "a")!.parentId).toBeUndefined();
+  });
+});
+
+describe("lock", () => {
+  it("marks the node locked and disables dragging/connecting", () => {
+    useEditor.setState({ nodes: [mkNode("a", 0, 0)], selectedIds: ["a"], selected: "a" });
+    useEditor.getState().setLocked("a", true);
+    const n = useEditor.getState().nodes[0];
+    expect(n.draggable).toBe(false);
+    expect(n.connectable).toBe(false);
+    expect((n.data as ShapeNodeData).locked).toBe(true);
+  });
+});
+
+describe("z-order", () => {
+  it("brings a node above the others", () => {
+    useEditor.setState({
+      nodes: [mkNode("a", 0, 0), mkNode("b", 10, 0), mkNode("c", 20, 0)],
+      selectedIds: ["a"],
+    });
+    useEditor.getState().bringToFront();
+    const nodes = useEditor.getState().nodes;
+    const a = nodes.find((n) => n.id === "a")!;
+    const others = nodes.filter((n) => n.id !== "a");
+    expect(a.zIndex ?? 0).toBeGreaterThan(Math.max(...others.map((n) => n.zIndex ?? 0)));
+  });
+
+  it("sends a node below the others", () => {
+    useEditor.setState({ nodes: [mkNode("a", 0, 0), mkNode("b", 10, 0)], selectedIds: ["b"] });
+    useEditor.getState().sendToBack();
+    const nodes = useEditor.getState().nodes;
+    const b = nodes.find((n) => n.id === "b")!;
+    const a = nodes.find((n) => n.id === "a")!;
+    expect(b.zIndex ?? 0).toBeLessThan(a.zIndex ?? 0);
+  });
+});
+
+describe("copy / paste", () => {
+  it("pastes a duplicate with an offset", () => {
+    useEditor.setState({ nodes: [mkNode("a", 0, 0)], edges: [], selectedIds: ["a"] });
+    useEditor.getState().copySelected();
+    useEditor.getState().paste();
+    const nodes = useEditor.getState().nodes;
+    expect(nodes).toHaveLength(2);
+    expect(nodes[1].position.x).toBe(40);
+  });
+
+  it("does nothing when the clipboard is empty", () => {
+    useEditor.setState({ nodes: [mkNode("a", 0, 0)], selectedIds: [] });
+    useEditor.getState().paste();
+    expect(useEditor.getState().nodes).toHaveLength(1);
+  });
+});
+
+describe("selectAll", () => {
+  it("selects every node and edge", () => {
+    useEditor.setState({
+      nodes: [mkNode("a", 0, 0), mkNode("b", 10, 0)],
+      edges: [mkEdge("e1", "a", "b")],
+    });
+    useEditor.getState().selectAll();
+    expect(useEditor.getState().selectedIds.sort()).toEqual(["a", "b", "e1"]);
   });
 });

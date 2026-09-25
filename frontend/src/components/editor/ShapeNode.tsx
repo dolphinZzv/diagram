@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
+import { Lock } from "lucide-react";
 import { Shape } from "./Shape";
 import type { ShapeNodeData } from "@/lib/types";
 import { useEditor } from "@/lib/store";
@@ -10,13 +11,14 @@ function ShapeNodeComponent({ id, data, selected, width, height }: NodeProps<Sha
   const updateNodeData = useEditor((s) => s.updateNodeData);
   const w = Math.round(width || data.width || 160);
   const h = Math.round(height || data.height || 80);
+  const locked = !!data.locked;
 
   return (
     <div className="shape-node relative h-full w-full">
       <NodeResizer
         minWidth={30}
         minHeight={24}
-        isVisible={selected}
+        isVisible={selected && !locked}
         lineClassName="!border-primary"
         handleClassName="!h-2.5 !w-2.5 !rounded-sm !border-primary !bg-background"
         onResizeEnd={(_e, params) => {
@@ -54,10 +56,20 @@ function ShapeNodeComponent({ id, data, selected, width, height }: NodeProps<Sha
         ) : null}
       </div>
 
-      <Handle type="source" position={Position.Top} id="t" />
-      <Handle type="source" position={Position.Right} id="r" />
-      <Handle type="source" position={Position.Bottom} id="b" />
-      <Handle type="source" position={Position.Left} id="l" />
+      {!locked && (
+        <>
+          <Handle type="source" position={Position.Top} id="t" />
+          <Handle type="source" position={Position.Right} id="r" />
+          <Handle type="source" position={Position.Bottom} id="b" />
+          <Handle type="source" position={Position.Left} id="l" />
+        </>
+      )}
+
+      {locked && (
+        <div className="pointer-events-none absolute -right-2 -top-2 rounded-full bg-amber-500 p-0.5 text-white shadow">
+          <Lock className="h-3 w-3" />
+        </div>
+      )}
     </div>
   );
 }

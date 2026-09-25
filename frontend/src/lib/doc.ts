@@ -23,18 +23,43 @@ export function serializeDoc(
 }
 
 export function normalizeNodes(raw: unknown[]): Node[] {
-  return (raw ?? []).map((n) => {
-    const node = n as Partial<Node> & { data?: Partial<ShapeNodeData> };
-    const shape = (node.data?.shape ?? "rect") as ShapeNodeData["shape"];
-    const data = { ...defaultNodeData(shape), ...(node.data ?? {}) };
+  const list = (raw ?? []).map((n) => {
+    const node = n as Partial<Node> & { data?: Record<string, unknown> };
+    const id = node.id ?? uid("n_");
+    const position = node.position ?? { x: 0, y: 0 };
+
+    if (node.type === "group") {
+      return {
+        ...node,
+        id,
+        type: "group",
+        position,
+        data: { label: (node.data?.label as string) ?? "" },
+        style: node.style ?? {},
+        connectable: false,
+      } as Node;
+    }
+
+    const shapeData = node.data as Partial<ShapeNodeData> | undefined;
+    const shape = (shapeData?.shape ?? "rect") as ShapeNodeData["shape"];
+    const data = { ...defaultNodeData(shape), ...(shapeData ?? {}) };
     return {
       ...node,
-      id: node.id ?? uid("n_"),
+      id,
       type: "shape",
-      position: node.position ?? { x: 0, y: 0 },
+      position,
       data,
       style: { width: data.width, height: data.height, ...(node.style ?? {}) },
     } as Node;
+  });
+
+  // React Flow requires parent (group) nodes to appear before their children.
+  const order = new Map(list.map((n, i) => [n.id, i]));
+  return list.sort((a, b) => {
+    const ag = a.type === "group" ? 0 : 1;
+    const bg = b.type === "group" ? 0 : 1;
+    if (ag !== bg) return ag - bg;
+    return (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0);
   });
 }
 

@@ -37,6 +37,18 @@
 - **分布**：水平等距 / 垂直等距
 - 批量复制、批量删除
 
+### 分组 / 锁定 / 图层
+- **分组 / 取消分组**：把多个节点包进可移动、可缩放的容器（`Ctrl+G` / `Ctrl+Shift+G`）
+- **锁定 / 解锁**：锁定后不可移动、缩放、连线（`Ctrl+L`），节点显示锁标记
+- **图层**：置顶 / 上移一层 / 下移一层 / 置底（`Ctrl+]` / `Ctrl+[`，加 `Shift` 到顶/到底）
+- **复制粘贴**：`Ctrl+C` / `Ctrl+V`，`Ctrl+D` 再制
+
+### 本地草稿（防丢失）
+- 编辑内容自动写入浏览器 `localStorage`（防抖 400ms）
+- 页面意外关闭后再打开，会自动恢复未保存的草稿并提示
+- 保存到服务器后自动清除草稿
+- 快捷键面板：右上角 **设置 → 快捷键**，或直接按 `?`
+
 ### 模板库
 - 内置 **基础流程图**、**微服务架构**、**数据管道** 三套模板，一键套用
 
@@ -79,13 +91,21 @@
 ### 快捷键
 | 操作 | 快捷键 |
 | --- | --- |
-| 撤销 | `Ctrl/Cmd + Z` |
-| 重做 | `Ctrl/Cmd + Shift + Z` / `Ctrl + Y` |
-| 复制选中 | `Ctrl/Cmd + D` |
+| 撤销 / 重做 | `Ctrl+Z` / `Ctrl+Shift+Z`（`Ctrl+Y`） |
+| 复制 / 粘贴 | `Ctrl+C` / `Ctrl+V` |
+| 再制（副本） | `Ctrl+D` |
 | 删除选中 | `Delete` / `Backspace` |
+| 全选 | `Ctrl+A` |
+| 分组 / 取消分组 | `Ctrl+G` / `Ctrl+Shift+G` |
+| 锁定 / 解锁 | `Ctrl+L` |
+| 上移 / 下移一层 | `Ctrl+]` / `Ctrl+[` |
+| 置顶 / 置底 | `Ctrl+Shift+]` / `Ctrl+Shift+[` |
+| 保存 | `Ctrl+S` |
 | 取消选择 | `Esc` |
-| 保存 | `Ctrl/Cmd + S` |
-| 多选 | `Shift` / `Ctrl` 拖拽框选 |
+| 多选 | `Shift` 点选 / 拖拽框选 |
+| 快捷键帮助 | `?` |
+
+> macOS 上 `Ctrl` 对应 `⌘`（Command）。
 
 ---
 
@@ -279,6 +299,62 @@ diagram/
 
 ---
 
+## 🤖 MCP Server（供 AI Agent 直接编辑流程图）
+
+内置 MCP server，提供两种传输方式：
+
+### 1) stdio（本地子进程）
+
+```json
+{
+  "mcpServers": {
+    "diagram": {
+      "command": "diagram",
+      "args": ["mcp"],
+      "env": { "DIAGRAM_DB": "/home/me/.diagram/diagram.db" }
+    }
+  }
+}
+```
+
+### 2) HTTP（Streamable HTTP，连接正在运行的 server）
+
+```
+http://localhost:8080/mcp
+```
+
+- `POST /mcp`：JSON-RPC，请求头 `Accept: application/json` 返回 JSON；`Accept: text/event-stream` 返回 SSE。
+- 响应头返回 `Mcp-Session-Id`；`DELETE /mcp` 结束会话，`GET /mcp` 返回 405。
+- 启用 `DIAGRAM_TOKEN` 时，`/mcp` 同样需要 `Authorization: Bearer <token>`。
+
+### 工具列表（17 个）
+
+| 工具 | 说明 |
+| --- | --- |
+| `diagram_list` | 列出所有图纸 |
+| `diagram_get` | 获取图纸完整数据（nodes/edges） |
+| `diagram_create` | 新建空图纸，返回 id |
+| `diagram_update` | 用 `{nodes, edges}` 整体替换 |
+| `diagram_delete` | 删除图纸 |
+| `node_add` | 添加节点（形状/文本/坐标/颜色） |
+| `node_update` | 修改节点字段（可合并 patch） |
+| `node_remove` | 删除节点（含相连的线） |
+| `edge_add` | 连接两个节点 |
+| `edge_update` | 修改连线字段 |
+| `edge_remove` | 删除连线 |
+| `version_list` | 版本历史 |
+| `version_create` | 手动快照 |
+| `version_restore` | 恢复到指定版本 |
+| `share_enable` | 开启/轮换只读分享链接 |
+| `share_get` | 查询分享状态 |
+| `share_disable` | 关闭分享 |
+
+### 示例：让 agent 画一张图
+
+依次调用：`diagram_create` → `node_add`（多次）→ `edge_add` → `diagram_get` 验证即可。
+
+---
+
 ## 🧪 测试
 
 项目在 CI 中全量运行单元测试（无需本地安装依赖）。
@@ -292,8 +368,8 @@ cd frontend && npm ci && npm run test
 ```
 
 覆盖内容：
-- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、限流与 CORS、更新工具函数、**版本历史（自动/手动/恢复/删除/裁剪/去重）**、**只读分享（开启/关闭/轮换令牌/公开只读/鉴权边界）**、**旧库迁移**
-- **前端**：形状与连线默认值、几何路径计算、文档序列化/反序列化、zustand 编辑器（增删改、撤销重做、多选对齐与分布）、模板完整性、组件渲染（Shape / ColorField / Toaster）、**跨环境 ID 生成（非安全上下文回退）**
+- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、限流与 CORS、更新工具函数、**版本历史（自动/手动/恢复/删除/裁剪/去重）**、**只读分享（开启/关闭/轮换令牌/公开只读/鉴权边界）**、**图片分享（上传/直链/非法格式/级联删除）**、**旧库迁移**、**MCP（工具列表/初始化/增删改查流程/错误处理/HTTP 与 SSE 传输/鉴权）**
+- **前端**：形状与连线默认值、几何路径、矢量 SVG 导出、文档序列化、zustand 编辑器（增删改/撤销重做/多选对齐分布/**分组/锁定/图层/复制粘贴/全选**）、模板、组件渲染、**跨环境 ID 生成**、**i18n**、**主题**、**本地草稿**
 
 ---
 

@@ -9,9 +9,14 @@ import { ShapePalette } from "@/components/editor/ShapePalette";
 import { Canvas } from "@/components/editor/Canvas";
 import { Inspector } from "@/components/editor/Inspector";
 import { SharedView } from "@/components/editor/SharedView";
+import { ShortcutsDialog } from "@/components/editor/ShortcutsDialog";
+import { useT } from "@/lib/i18n";
+import { useDraftPersistence } from "@/hooks/useDraft";
 import { Toaster } from "@/components/Toaster";
 
 function EditorApp() {
+  const t = useT();
+  useDraftPersistence();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
 
@@ -45,7 +50,7 @@ function EditorApp() {
       <Sheet open={paletteOpen} onOpenChange={setPaletteOpen}>
         <SheetContent side="left" className="w-[80vw] max-w-xs gap-0 p-0">
           <SheetHeader>
-            <SheetTitle>添加图形</SheetTitle>
+            <SheetTitle>{t("palette.addTitle")}</SheetTitle>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-hidden">
             <ShapePalette onAdded={() => setPaletteOpen(false)} />
@@ -56,13 +61,15 @@ function EditorApp() {
       <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen}>
         <SheetContent side="right" className="w-[88vw] max-w-sm gap-0 p-0">
           <SheetHeader>
-            <SheetTitle>属性</SheetTitle>
+            <SheetTitle>{t("inspector.panelTitle")}</SheetTitle>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-hidden">
             <Inspector />
           </div>
         </SheetContent>
       </Sheet>
+
+      <ShortcutsDialog />
     </div>
   );
 }
