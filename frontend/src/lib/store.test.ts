@@ -242,3 +242,29 @@ describe("selectAll", () => {
     expect(useEditor.getState().selectedIds.sort()).toEqual(["a", "b", "e1"]);
   });
 });
+
+describe("sequence helpers", () => {
+  it("adds participants to the right", () => {
+    useEditor.getState().addParticipant();
+    useEditor.getState().addParticipant();
+    const lifelines = useEditor.getState().nodes.filter((n) => n.type === "lifeline");
+    expect(lifelines).toHaveLength(2);
+    expect(lifelines[1].position.x).toBeGreaterThan(lifelines[0].position.x);
+  });
+
+  it("adds messages on successive rows", () => {
+    useEditor.getState().addParticipant();
+    useEditor.getState().addParticipant();
+    const ids = useEditor
+      .getState()
+      .nodes.filter((n) => n.type === "lifeline")
+      .map((n) => n.id);
+    useEditor.getState().addMessage(ids[0], ids[1], "请求");
+    useEditor.getState().addMessage(ids[0], ids[1], "再请求");
+    const edges = useEditor.getState().edges;
+    expect(edges).toHaveLength(2);
+    expect(edges[0].sourceHandle).toBe("r0");
+    expect(edges[0].targetHandle).toBe("l0");
+    expect(edges[1].sourceHandle).toBe("r1");
+  });
+});

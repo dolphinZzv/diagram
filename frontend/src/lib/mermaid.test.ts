@@ -55,4 +55,37 @@ describe("toMermaid", () => {
   it("supports LR direction", () => {
     expect(toMermaid([node("a", "rect", "A")], [], "LR").startsWith("flowchart LR")).toBe(true);
   });
+
+  it("emits a sequenceDiagram when lifeline nodes exist", () => {
+    const lifelines = [
+      { id: "a", type: "lifeline", position: { x: 0, y: 0 }, data: { label: "用户" } },
+      { id: "b", type: "lifeline", position: { x: 230, y: 0 }, data: { label: "服务器" } },
+    ] as unknown as Node[];
+    const messages = [
+      {
+        id: "m",
+        source: "a",
+        target: "b",
+        sourceHandle: "r1",
+        targetHandle: "l1",
+        type: "custom",
+        data: { ...defaultEdgeData(), label: "请求" },
+      },
+      {
+        id: "m2",
+        source: "b",
+        target: "a",
+        sourceHandle: "l0",
+        targetHandle: "r0",
+        type: "custom",
+        data: { ...defaultEdgeData(), label: "响应", lineStyle: "dashed" },
+      },
+    ] as unknown as Edge[];
+    const md = toMermaid(lifelines, messages);
+    expect(md.startsWith("sequenceDiagram")).toBe(true);
+    expect(md).toContain("participant a as 用户");
+    expect(md).toContain("participant b as 服务器");
+    // row 0 before row 1
+    expect(md.indexOf("b-->>a: 响应")).toBeLessThan(md.indexOf("a->>b: 请求"));
+  });
 });

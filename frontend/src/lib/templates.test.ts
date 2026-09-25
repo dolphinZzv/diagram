@@ -20,7 +20,7 @@ describe("TEMPLATES", () => {
         expect(nodeIds.size).toBe(nodes.length);
 
         for (const n of nodes) {
-          expect(n.type).toBe("shape");
+          expect(["shape", "lifeline"]).toContain(n.type);
           const data = n.data as ShapeNodeData;
           expect(data.shape).toBeTruthy();
           expect(data.width).toBeGreaterThan(0);

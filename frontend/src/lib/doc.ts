@@ -40,6 +40,19 @@ export function normalizeNodes(raw: unknown[]): Node[] {
       } as Node;
     }
 
+    if (node.type === "lifeline") {
+      const d = node.data as Partial<ShapeNodeData> | undefined;
+      const data = { ...defaultNodeData("rect"), ...(d ?? {}) };
+      return {
+        ...node,
+        id,
+        type: "lifeline",
+        position,
+        data,
+        style: { width: data.width, height: data.height, ...(node.style ?? {}) },
+      } as Node;
+    }
+
     const shapeData = node.data as Partial<ShapeNodeData> | undefined;
     const shape = (shapeData?.shape ?? "rect") as ShapeNodeData["shape"];
     const data = { ...defaultNodeData(shape), ...(shapeData ?? {}) };

@@ -155,3 +155,8 @@ button,
 .readonly-canvas .react-flow__node {
   cursor: default;
 }
+
+/* Sequence diagram lifelines: hide the row handles (connect via menu). */
+.lifeline-node .react-flow__handle {
+  opacity: 0 !important;
+}

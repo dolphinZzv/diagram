@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import { defaultEdgeData, defaultNodeData, type EdgeData, type ShapeNodeData, type ShapeType } from "./types";
+import { SEQ_HEIGHT, SEQ_WIDTH } from "./sequence";
 
 interface NodeOpts {
   shape?: ShapeType;
@@ -49,6 +50,26 @@ function edge(id: string, source: string, target: string, opts: EdgeOpts = {}): 
     targetHandle,
     type: "custom",
     data: { ...defaultEdgeData(), ...data },
+  };
+}
+
+/** A sequence-diagram participant (lifeline) node. */
+function lifeline(id: string, x: number, y: number, label: string, stroke = "#475569"): Node {
+  const data: ShapeNodeData = {
+    ...defaultNodeData("rect"),
+    label,
+    fill: "#ffffff",
+    stroke,
+    textColor: "#0f172a",
+    width: SEQ_WIDTH,
+    height: SEQ_HEIGHT,
+  };
+  return {
+    id,
+    type: "lifeline",
+    position: { x, y },
+    data,
+    style: { width: SEQ_WIDTH, height: SEQ_HEIGHT },
   };
 }
 
@@ -154,6 +175,27 @@ export const TEMPLATES: Template[] = [
         edge("me-5", "mm-root", "mm-c", { sourceHandle: "r", targetHandle: "l" }),
         edge("me-6", "mm-root", "mm-d", { sourceHandle: "l", targetHandle: "r" }),
         edge("me-7", "mm-root", "mm-e", { sourceHandle: "l", targetHandle: "r" }),
+      ],
+    }),
+  },
+  {
+    id: "sequence",
+    name: "时序图",
+    description: "参与者 / 生命线 / 消息",
+    build: () => ({
+      nodes: [
+        lifeline("sq-user", 0, 0, "用户", "#0284c7"),
+        lifeline("sq-web", 230, 0, "浏览器", "#7c3aed"),
+        lifeline("sq-api", 460, 0, "服务器", "#16a34a"),
+        lifeline("sq-db", 690, 0, "数据库", "#d97706"),
+      ],
+      edges: [
+        edge("sq-m1", "sq-user", "sq-web", { sourceHandle: "r0", targetHandle: "l0", label: "打开页面", pathType: "straight" }),
+        edge("sq-m2", "sq-web", "sq-api", { sourceHandle: "r1", targetHandle: "l1", label: "请求 /api", pathType: "straight" }),
+        edge("sq-m3", "sq-api", "sq-db", { sourceHandle: "r2", targetHandle: "l2", label: "查询", pathType: "straight" }),
+        edge("sq-m4", "sq-db", "sq-api", { sourceHandle: "l3", targetHandle: "r3", label: "结果", pathType: "straight", lineStyle: "dashed" }),
+        edge("sq-m5", "sq-api", "sq-web", { sourceHandle: "l4", targetHandle: "r4", label: "响应", pathType: "straight", lineStyle: "dashed" }),
+        edge("sq-m6", "sq-web", "sq-user", { sourceHandle: "l5", targetHandle: "r5", label: "渲染", pathType: "straight" }),
       ],
     }),
   },

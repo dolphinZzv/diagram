@@ -34,6 +34,7 @@ import {
   Network,
   LayoutDashboard,
   Palette as PaletteIcon,
+  Send,
 } from "lucide-react";
 import { nodeTypes, edgeTypes } from "./flow-types";
 import { useEditor } from "@/lib/store";
@@ -358,6 +359,23 @@ export function Canvas() {
         "separator",
         { label: t("mindmap.addChild"), icon: <CornerDownRight className="h-4 w-4" />, shortcut: "Tab", onClick: () => { select(); s.addChildNode(id); } },
         { label: t("mindmap.addSibling"), icon: <Plus className="h-4 w-4" />, shortcut: "Enter", onClick: () => { select(); s.addSiblingNode(id); } },
+        ...(node?.type === "lifeline"
+          ? [
+              {
+                label: t("seq.addMessage"),
+                icon: <Send className="h-4 w-4" />,
+                onClick: () => {
+                  const next = s.nodes
+                    .filter(
+                      (n) => n.type === "lifeline" && n.id !== id && n.position.x > node.position.x
+                    )
+                    .sort((a, b) => a.position.x - b.position.x)[0];
+                  if (next) s.addMessage(id, next.id);
+                },
+              } as CtxItem,
+              { label: t("seq.addParticipant"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addParticipant() },
+            ]
+          : []),
         "separator",
         locked
           ? { label: t("ctx.unlock"), icon: <LockOpen className="h-4 w-4" />, onClick: () => { select(); s.lockSelected(false); } }
@@ -376,6 +394,8 @@ export function Canvas() {
     return [
       { label: t("ctx.paste"), icon: <ClipboardPaste className="h-4 w-4" />, shortcut: "Ctrl V", disabled: !s.clipboard, onClick: () => s.paste() },
       { label: t("ctx.selectAll"), icon: <MousePointer2 className="h-4 w-4" />, shortcut: "Ctrl A", onClick: () => s.selectAll() },
+      "separator",
+      { label: t("seq.addParticipant"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addParticipant() },
       "separator",
       { label: t("command.autoLayoutTB"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("TB") },
       { label: t("command.autoLayoutLR"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("LR") },

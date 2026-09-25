@@ -15,6 +15,7 @@ import { defaultShapeLabel, tr } from "./i18n";
 import { layoutLayered } from "./layout";
 import { layoutMindMap } from "./mindmap";
 import { paletteTone } from "./palettes";
+import { SEQ_HEIGHT, SEQ_ROWS, SEQ_WIDTH, parseRow, rowHandleId } from "./sequence";
 
 export interface DiagramMeta {
   id: string | null;
@@ -79,6 +80,8 @@ interface EditorState {
   restyleAll: (paletteKey: string) => void;
   addChildNode: (parentId: string) => void;
   addSiblingNode: (nodeId: string) => void;
+  addParticipant: () => void;
+  addMessage: (sourceId: string, targetId: string, label?: string) => void;
 
   loadDoc: (nodes: Node[], edges: Edge[]) => void;
   clearAll: () => void;
@@ -681,6 +684,75 @@ export const useEditor = create<EditorState>((set, get) => ({
       selected: id,
       meta: { ...get().meta, saved: false },
     });
+  },
+
+  addParticipant: () => {
+    const { nodes, pushHistory } = get();
+    pushHistory();
+    const lifelines = nodes.filter((n) => n.type === "lifeline");
+    const gap = 80;
+    const x = lifelines.length
+      ? Math.max(...lifelines.map((n) => n.position.x)) + SEQ_WIDTH + gap
+      : 0;
+    const y = lifelines.length ? Math.min(...lifelines.map((n) => n.position.y)) : 0;
+    const id = uid("n_");
+    const data: ShapeNodeData = {
+      ...defaultNodeData("rect"),
+      label: `${tr("seq.participant")} ${lifelines.length + 1}`,
+      fill: "#ffffff",
+      stroke: "#475569",
+      textColor: "#0f172a",
+      width: SEQ_WIDTH,
+      height: SEQ_HEIGHT,
+    };
+    const node: Node = {
+      id,
+      type: "lifeline",
+      position: { x, y },
+      data,
+      style: { width: SEQ_WIDTH, height: SEQ_HEIGHT },
+      selected: true,
+    };
+    set({
+      nodes: [...nodes.map((n) => ({ ...n, selected: false })), node],
+      selectedIds: [id],
+      selected: id,
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  addMessage: (sourceId, targetId, label) => {
+    const { nodes, edges, pushHistory } = get();
+    const source = nodes.find((n) => n.id === sourceId);
+    const target = nodes.find((n) => n.id === targetId);
+    if (!source || !target) return;
+    pushHistory();
+
+    // Pick the first unused row.
+    const used = new Set<number>();
+    for (const e of edges) {
+      const row = parseRow(e.sourceHandle);
+      if (row !== null) used.add(row);
+    }
+    let row = 0;
+    while (used.has(row) && row < SEQ_ROWS - 1) row += 1;
+
+    const rightward = target.position.x >= source.position.x;
+    const edge: Edge = {
+      id: uid("e_"),
+      source: sourceId,
+      target: targetId,
+      sourceHandle: rowHandleId(rightward ? "r" : "l", row),
+      targetHandle: rowHandleId(rightward ? "l" : "r", row),
+      type: "custom",
+      data: {
+        ...defaultEdgeData(),
+        label: label ?? tr("seq.message"),
+        pathType: "straight",
+        arrowType: "arrowclosed",
+      },
+    };
+    set({ edges: [...edges, edge], meta: { ...get().meta, saved: false } });
   },
 
   clearAll: () => {
