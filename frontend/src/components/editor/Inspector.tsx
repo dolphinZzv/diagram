@@ -16,7 +16,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorField } from "./ColorField";
 import { useEditor, type AlignMode } from "@/lib/store";
-import { SHAPE_LABELS, SHAPE_LIST, type EdgeData, type ShapeNodeData } from "@/lib/types";
+import { SHAPE_LIST, type EdgeData, type ShapeNodeData } from "@/lib/types";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 function Row({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
@@ -114,6 +115,7 @@ function ArrowSelect({
   onChange: (v: EdgeData["arrowType"]) => void;
   label: string;
 }) {
+  const t = useT();
   return (
     <Row label={label}>
       <Select value={value} onValueChange={(v) => onChange(v as EdgeData["arrowType"])}>
@@ -122,16 +124,16 @@ function ArrowSelect({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="arrowclosed" className="text-xs">
-            实心箭头
+            {t("inspector.arrowClosed")}
           </SelectItem>
           <SelectItem value="arrow" className="text-xs">
-            空心箭头
+            {t("inspector.arrowOpen")}
           </SelectItem>
           <SelectItem value="diamond" className="text-xs">
-            菱形
+            {t("inspector.diamond")}
           </SelectItem>
           <SelectItem value="none" className="text-xs">
-            无
+            {t("inspector.none")}
           </SelectItem>
         </SelectContent>
       </Select>
@@ -155,6 +157,7 @@ export function Inspector() {
 }
 
 function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
+  const t = useT();
   const update = useEditor((s) => s.updateNodeData);
   const remove = useEditor((s) => s.removeSelected);
   const setSelected = useEditor((s) => s.setSelected);
@@ -162,28 +165,28 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-3 py-2">
-        <span className="text-sm font-semibold">节点属性</span>
+        <span className="text-sm font-semibold">{t("inspector.nodeTitle")}</span>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(null)} title="取消选择">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(null)} title={t("inspector.cancel")}>
             <X className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={remove} title="删除">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={remove} title={t("inspector.remove")}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
-        <Row label="文本">
+        <Row label={t("inspector.text")}>
           <Input
             value={data.label}
             onChange={(e) => update(id, { label: e.target.value })}
             className="h-8 text-xs"
-            placeholder="输入文字…"
+            placeholder={t("inspector.textPlaceholder")}
           />
         </Row>
 
-        <Row label="形状">
+        <Row label={t("inspector.shape")}>
           <Select value={data.shape} onValueChange={(v) => update(id, { shape: v as ShapeNodeData["shape"] })}>
             <SelectTrigger className="h-8 text-xs">
               <SelectValue />
@@ -191,31 +194,31 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
             <SelectContent>
               {SHAPE_LIST.map((s) => (
                 <SelectItem key={s} value={s} className="text-xs">
-                  {SHAPE_LABELS[s]}
+                  {t(`shape.${s}`)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Row>
 
-        <Row label="填充颜色">
+        <Row label={t("inspector.fill")}>
           <ColorField value={data.fill} onChange={(v) => update(id, { fill: v })} />
         </Row>
 
-        <Row label="边框颜色">
+        <Row label={t("inspector.stroke")}>
           <ColorField value={data.stroke} onChange={(v) => update(id, { stroke: v })} />
         </Row>
 
-        <SliderRow label="边框粗细" value={data.strokeWidth} min={0} max={12} step={0.5} onChange={(v) => update(id, { strokeWidth: v })} />
-        <SliderRow label="圆角大小" value={data.radius} min={0} max={50} onChange={(v) => update(id, { radius: v })} />
+        <SliderRow label={t("inspector.strokeWidth")} value={data.strokeWidth} min={0} max={12} step={0.5} onChange={(v) => update(id, { strokeWidth: v })} />
+        <SliderRow label={t("inspector.radius")} value={data.radius} min={0} max={50} onChange={(v) => update(id, { radius: v })} />
 
         <Separator />
 
-        <Row label="文字颜色">
+        <Row label={t("inspector.textColor")}>
           <ColorField value={data.textColor} onChange={(v) => update(id, { textColor: v })} />
         </Row>
 
-        <SliderRow label="字号" value={data.fontSize} min={8} max={48} onChange={(v) => update(id, { fontSize: v })} />
+        <SliderRow label={t("inspector.fontSize")} value={data.fontSize} min={8} max={48} onChange={(v) => update(id, { fontSize: v })} />
 
         <div className="flex items-center gap-2">
           <Button
@@ -225,7 +228,7 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
             className="h-8 flex-1"
             onClick={() => update(id, { fontWeight: data.fontWeight === "bold" ? "normal" : "bold" })}
           >
-            <Bold className="h-3.5 w-3.5" /> 加粗
+            <Bold className="h-3.5 w-3.5" /> {t("inspector.bold")}
           </Button>
           <Button
             type="button"
@@ -234,13 +237,13 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
             className="h-8 flex-1"
             onClick={() => update(id, { fontStyle: data.fontStyle === "italic" ? "normal" : "italic" })}
           >
-            <Italic className="h-3.5 w-3.5" /> 斜体
+            <Italic className="h-3.5 w-3.5" /> {t("inspector.italic")}
           </Button>
         </div>
 
         <Separator />
 
-        <SliderRow label="旋转角度" value={data.rotation} min={-180} max={180} suffix="°" onChange={(v) => update(id, { rotation: v })} />
+        <SliderRow label={t("inspector.rotation")} value={data.rotation} min={-180} max={180} suffix="°" onChange={(v) => update(id, { rotation: v })} />
         <div className="flex gap-1">
           {[0, 45, 90, 135, 180, 270].map((deg) => (
             <Button
@@ -255,27 +258,28 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
           ))}
         </div>
         <Button variant="outline" size="sm" className="h-8 w-full" onClick={() => update(id, { rotation: 0 })}>
-          <RotateCw className="h-3.5 w-3.5" /> 重置角度
+          <RotateCw className="h-3.5 w-3.5" /> {t("inspector.resetAngle")}
         </Button>
 
         <Separator />
 
         <div className="grid grid-cols-2 gap-2">
-          <Row label="宽度">
+          <Row label={t("inspector.width")}>
             <NumberField value={data.width} min={20} onChange={(v) => update(id, { width: v })} suffix="px" />
           </Row>
-          <Row label="高度">
+          <Row label={t("inspector.height")}>
             <NumberField value={data.height} min={20} onChange={(v) => update(id, { height: v })} suffix="px" />
           </Row>
         </div>
 
-        <SliderRow label="不透明度" value={data.opacity} min={0.1} max={1} step={0.05} onChange={(v) => update(id, { opacity: v })} />
+        <SliderRow label={t("inspector.opacity")} value={data.opacity} min={0.1} max={1} step={0.05} onChange={(v) => update(id, { opacity: v })} />
       </div>
     </div>
   );
 }
 
 function EdgeInspector({ id, data }: { id: string; data: EdgeData }) {
+  const t = useT();
   const update = useEditor((s) => s.updateEdgeData);
   const remove = useEditor((s) => s.removeSelected);
   const setSelected = useEditor((s) => s.setSelected);
@@ -283,93 +287,91 @@ function EdgeInspector({ id, data }: { id: string; data: EdgeData }) {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-3 py-2">
-        <span className="text-sm font-semibold">连线属性</span>
+        <span className="text-sm font-semibold">{t("inspector.edgeTitle")}</span>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(null)} title="取消选择">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(null)} title={t("inspector.cancel")}>
             <X className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={remove} title="删除">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={remove} title={t("inspector.remove")}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
-        <Row label="标签文字">
+        <Row label={t("inspector.label")}>
           <Input
             value={data.label}
             onChange={(e) => update(id, { label: e.target.value })}
             className="h-8 text-xs"
-            placeholder="连线标签…"
+            placeholder={t("inspector.labelPlaceholder")}
           />
         </Row>
 
-        <Row label="线条颜色">
+        <Row label={t("inspector.lineColor")}>
           <ColorField value={data.color} onChange={(v) => update(id, { color: v })} allowTransparent={false} />
         </Row>
 
-        <SliderRow label="线条粗细" value={data.width} min={1} max={12} step={0.5} onChange={(v) => update(id, { width: v })} />
+        <SliderRow label={t("inspector.lineWidth")} value={data.width} min={1} max={12} step={0.5} onChange={(v) => update(id, { width: v })} />
 
-        <Row label="线条样式">
+        <Row label={t("inspector.lineStyle")}>
           <Tabs value={data.lineStyle} onValueChange={(v) => update(id, { lineStyle: v as EdgeData["lineStyle"] })}>
             <TabsList className="grid h-8 w-full grid-cols-3">
               <TabsTrigger value="solid" className="text-xs">
-                实线
+                {t("inspector.solid")}
               </TabsTrigger>
               <TabsTrigger value="dashed" className="text-xs">
-                虚线
+                {t("inspector.dashed")}
               </TabsTrigger>
               <TabsTrigger value="dotted" className="text-xs">
-                点线
+                {t("inspector.dotted")}
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </Row>
 
-        <Row label="路径类型">
+        <Row label={t("inspector.pathType")}>
           <Select value={data.pathType} onValueChange={(v) => update(id, { pathType: v as EdgeData["pathType"] })}>
             <SelectTrigger className="h-8 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="bezier" className="text-xs">
-                贝塞尔曲线
+                {t("inspector.bezier")}
               </SelectItem>
               <SelectItem value="straight" className="text-xs">
-                直线
+                {t("inspector.straight")}
               </SelectItem>
               <SelectItem value="step" className="text-xs">
-                折线（直角）
+                {t("inspector.step")}
               </SelectItem>
               <SelectItem value="smoothstep" className="text-xs">
-                折线（圆角）
+                {t("inspector.smoothstep")}
               </SelectItem>
             </SelectContent>
           </Select>
         </Row>
 
-        <ArrowSelect label="终点箭头" value={data.arrowType} onChange={(v) => update(id, { arrowType: v })} />
-        <ArrowSelect label="起点箭头" value={data.startArrowType ?? "none"} onChange={(v) => update(id, { startArrowType: v })} />
+        <ArrowSelect label={t("inspector.endArrow")} value={data.arrowType} onChange={(v) => update(id, { arrowType: v })} />
+        <ArrowSelect label={t("inspector.startArrow")} value={data.startArrowType ?? "none"} onChange={(v) => update(id, { startArrowType: v })} />
 
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-muted-foreground">流动动画</Label>
+          <Label className="text-xs text-muted-foreground">{t("inspector.animated")}</Label>
           <Switch checked={data.animated} onCheckedChange={(v) => update(id, { animated: v })} />
         </div>
 
         <Separator />
 
-        <SliderRow label="标签角度" value={data.labelRotation} min={-180} max={180} suffix="°" onChange={(v) => update(id, { labelRotation: v })} />
+        <SliderRow label={t("inspector.labelAngle")} value={data.labelRotation} min={-180} max={180} suffix="°" onChange={(v) => update(id, { labelRotation: v })} />
 
         <Separator />
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-xs text-muted-foreground">控制点（拖动改变路径，双击删除）</Label>
-            <span className="text-[10px] text-muted-foreground">{data.points?.length ?? 0} 个</span>
+            <Label className="text-xs text-muted-foreground">{t("inspector.points")}</Label>
+            <span className="text-[10px] text-muted-foreground">{data.points?.length ?? 0}</span>
           </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
-            选中连线后，点击线段中间的圆点即可新增控制点；拖动圆点调整线条走向，双击圆点删除。
-          </p>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">{t("inspector.pointsHint")}</p>
           <Button
             variant="outline"
             size="sm"
@@ -377,7 +379,7 @@ function EdgeInspector({ id, data }: { id: string; data: EdgeData }) {
             disabled={!data.points || data.points.length === 0}
             onClick={() => update(id, { points: [] })}
           >
-            清除全部控制点
+            {t("inspector.clearPoints")}
           </Button>
         </div>
       </div>
@@ -386,21 +388,22 @@ function EdgeInspector({ id, data }: { id: string; data: EdgeData }) {
 }
 
 function AlignTools({ count }: { count: number }) {
+  const t = useT();
   const align = useEditor((s) => s.alignNodes);
   const distribute = useEditor((s) => s.distributeNodes);
 
   const alignButtons: { mode: AlignMode; label: string }[] = [
-    { mode: "left", label: "左对齐" },
-    { mode: "hcenter", label: "水平居中" },
-    { mode: "right", label: "右对齐" },
-    { mode: "top", label: "顶部对齐" },
-    { mode: "vcenter", label: "垂直居中" },
-    { mode: "bottom", label: "底部对齐" },
+    { mode: "left", label: t("inspector.alignLeft") },
+    { mode: "hcenter", label: t("inspector.alignCenterH") },
+    { mode: "right", label: t("inspector.alignRight") },
+    { mode: "top", label: t("inspector.alignTop") },
+    { mode: "vcenter", label: t("inspector.alignCenterV") },
+    { mode: "bottom", label: t("inspector.alignBottom") },
   ];
 
   return (
     <div className="space-y-3">
-      <Row label="对齐">
+      <Row label={t("inspector.align")}>
         <div className="grid grid-cols-3 gap-1">
           {alignButtons.map((b) => (
             <Button
@@ -416,25 +419,13 @@ function AlignTools({ count }: { count: number }) {
           ))}
         </div>
       </Row>
-      <Row label="分布">
+      <Row label={t("inspector.distribute")}>
         <div className="grid grid-cols-2 gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-[11px]"
-            disabled={count < 3}
-            onClick={() => distribute("horizontal")}
-          >
-            水平等距
+          <Button variant="outline" size="sm" className="h-8 text-[11px]" disabled={count < 3} onClick={() => distribute("horizontal")}>
+            {t("inspector.distH")}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-[11px]"
-            disabled={count < 3}
-            onClick={() => distribute("vertical")}
-          >
-            垂直等距
+          <Button variant="outline" size="sm" className="h-8 text-[11px]" disabled={count < 3} onClick={() => distribute("vertical")}>
+            {t("inspector.distV")}
           </Button>
         </div>
       </Row>
@@ -443,6 +434,7 @@ function AlignTools({ count }: { count: number }) {
 }
 
 function MultiInspector() {
+  const t = useT();
   const nodes = useEditor((s) => s.nodes);
   const edges = useEditor((s) => s.edges);
   const selectedIds = useEditor((s) => s.selectedIds);
@@ -460,12 +452,12 @@ function MultiInspector() {
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-3 py-2">
-        <span className="text-sm font-semibold">
-          已选 {nodeIds.length > 0 ? `${nodeIds.length} 个节点` : ""}
+        <span className="truncate text-sm font-semibold">
+          {t("inspector.selected")} {nodeIds.length > 0 ? t("inspector.nodesN", { n: nodeIds.length }) : ""}
           {nodeIds.length > 0 && edgeIds.length > 0 ? " · " : ""}
-          {edgeIds.length > 0 ? `${edgeIds.length} 条连线` : ""}
+          {edgeIds.length > 0 ? t("inspector.edgesN", { n: edgeIds.length }) : ""}
         </span>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelection([])} title="取消选择">
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setSelection([])} title={t("inspector.cancel")}>
           <X className="h-4 w-4" />
         </Button>
       </header>
@@ -473,20 +465,20 @@ function MultiInspector() {
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
         {hasNodes && (
           <>
-            <Row label="填充颜色">
+            <Row label={t("inspector.fill")}>
               <ColorField value="#ffffff" onChange={(v) => updateManyNodes(nodeIds, { fill: v })} />
             </Row>
-            <Row label="边框颜色">
+            <Row label={t("inspector.stroke")}>
               <ColorField value="#475569" onChange={(v) => updateManyNodes(nodeIds, { stroke: v })} />
             </Row>
-            <Row label="文字颜色">
+            <Row label={t("inspector.textColor")}>
               <ColorField value="#0f172a" onChange={(v) => updateManyNodes(nodeIds, { textColor: v })} />
             </Row>
-            <SliderRow label="边框粗细" value={2} min={0} max={12} step={0.5} onChange={(v) => updateManyNodes(nodeIds, { strokeWidth: v })} />
-            <SliderRow label="字号" value={14} min={8} max={48} onChange={(v) => updateManyNodes(nodeIds, { fontSize: v })} />
-            <SliderRow label="圆角大小" value={8} min={0} max={50} onChange={(v) => updateManyNodes(nodeIds, { radius: v })} />
-            <SliderRow label="不透明度" value={1} min={0.1} max={1} step={0.05} onChange={(v) => updateManyNodes(nodeIds, { opacity: v })} />
-            <SliderRow label="旋转角度" value={0} min={-180} max={180} suffix="°" onChange={(v) => updateManyNodes(nodeIds, { rotation: v })} />
+            <SliderRow label={t("inspector.strokeWidth")} value={2} min={0} max={12} step={0.5} onChange={(v) => updateManyNodes(nodeIds, { strokeWidth: v })} />
+            <SliderRow label={t("inspector.fontSize")} value={14} min={8} max={48} onChange={(v) => updateManyNodes(nodeIds, { fontSize: v })} />
+            <SliderRow label={t("inspector.radius")} value={8} min={0} max={50} onChange={(v) => updateManyNodes(nodeIds, { radius: v })} />
+            <SliderRow label={t("inspector.opacity")} value={1} min={0.1} max={1} step={0.05} onChange={(v) => updateManyNodes(nodeIds, { opacity: v })} />
+            <SliderRow label={t("inspector.rotation")} value={0} min={-180} max={180} suffix="°" onChange={(v) => updateManyNodes(nodeIds, { rotation: v })} />
             <Separator />
             <AlignTools count={nodeIds.length} />
           </>
@@ -496,47 +488,46 @@ function MultiInspector() {
 
         {hasEdges && (
           <>
-            <Row label="线条颜色">
+            <Row label={t("inspector.lineColor")}>
               <ColorField value="#475569" onChange={(v) => updateManyEdges(edgeIds, { color: v })} allowTransparent={false} />
             </Row>
-            <SliderRow label="线条粗细" value={2} min={1} max={12} step={0.5} onChange={(v) => updateManyEdges(edgeIds, { width: v })} />
-            <Row label="线条样式">
+            <SliderRow label={t("inspector.lineWidth")} value={2} min={1} max={12} step={0.5} onChange={(v) => updateManyEdges(edgeIds, { width: v })} />
+            <Row label={t("inspector.lineStyle")}>
               <Tabs value="solid" onValueChange={(v) => updateManyEdges(edgeIds, { lineStyle: v as EdgeData["lineStyle"] })}>
                 <TabsList className="grid h-8 w-full grid-cols-3">
                   <TabsTrigger value="solid" className="text-xs">
-                    实线
+                    {t("inspector.solid")}
                   </TabsTrigger>
                   <TabsTrigger value="dashed" className="text-xs">
-                    虚线
+                    {t("inspector.dashed")}
                   </TabsTrigger>
                   <TabsTrigger value="dotted" className="text-xs">
-                    点线
+                    {t("inspector.dotted")}
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
             </Row>
-            <ArrowSelect label="终点箭头" value="arrowclosed" onChange={(v) => updateManyEdges(edgeIds, { arrowType: v })} />
+            <ArrowSelect label={t("inspector.endArrow")} value="arrowclosed" onChange={(v) => updateManyEdges(edgeIds, { arrowType: v })} />
           </>
         )}
 
         <Separator />
         <div className="grid grid-cols-2 gap-2">
           <Button variant="outline" size="sm" className="h-8" onClick={duplicate}>
-            <Copy className="h-3.5 w-3.5" /> 复制
+            <Copy className="h-3.5 w-3.5" /> {t("inspector.duplicate")}
           </Button>
           <Button variant="destructive" size="sm" className="h-8" onClick={remove}>
-            <Trash2 className="h-3.5 w-3.5" /> 删除
+            <Trash2 className="h-3.5 w-3.5" /> {t("inspector.remove")}
           </Button>
         </div>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          提示：拖动节点外的空白区域可框选多个节点；按 Shift 可点选多个。
-        </p>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">{t("inspector.multiHint")}</p>
       </div>
     </div>
   );
 }
 
 function CanvasInspector() {
+  const t = useT();
   const meta = useEditor((s) => s.meta);
   const setMeta = useEditor((s) => s.setMeta);
   const nodes = useEditor((s) => s.nodes);
@@ -545,40 +536,40 @@ function CanvasInspector() {
   return (
     <div className="flex h-full flex-col">
       <header className="border-b px-3 py-2">
-        <span className="text-sm font-semibold">画布 / 文档</span>
+        <span className="text-sm font-semibold">{t("inspector.canvasTitle")}</span>
       </header>
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
-        <Row label="图纸名称">
+        <Row label={t("inspector.docName")}>
           <Input value={meta.name} onChange={(e) => setMeta({ name: e.target.value, saved: false })} className="h-8 text-xs" />
         </Row>
-        <Row label="描述">
+        <Row label={t("inspector.docDesc")}>
           <Input
             value={meta.description}
             onChange={(e) => setMeta({ description: e.target.value, saved: false })}
             className="h-8 text-xs"
-            placeholder="可选"
+            placeholder={t("inspector.optional")}
           />
         </Row>
         <Separator />
         <div className={cn("grid grid-cols-2 gap-2 text-center")}>
           <div className="rounded-lg border p-3">
             <div className="text-2xl font-semibold">{nodes.length}</div>
-            <div className="text-[11px] text-muted-foreground">节点</div>
+            <div className="text-[11px] text-muted-foreground">{t("inspector.nodesCount")}</div>
           </div>
           <div className="rounded-lg border p-3">
             <div className="text-2xl font-semibold">{edges.length}</div>
-            <div className="text-[11px] text-muted-foreground">连线</div>
+            <div className="text-[11px] text-muted-foreground">{t("inspector.edgesCount")}</div>
           </div>
         </div>
         <Separator />
         <div className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
-          <p className="font-medium text-foreground">快捷键</p>
-          <p>拖拽左侧图形到画布添加节点</p>
-          <p>拖拽节点边缘圆点连线</p>
-          <p>Shift / 框选可多选，批量编辑</p>
-          <p>Delete 删除选中 · Ctrl+D 复制</p>
-          <p>Ctrl+Z 撤销 · Ctrl+Shift+Z 重做</p>
-          <p>拖动连线中点圆点改变路径</p>
+          <p className="font-medium text-foreground">{t("inspector.shortcuts")}</p>
+          <p>{t("inspector.sc1")}</p>
+          <p>{t("inspector.sc2")}</p>
+          <p>{t("inspector.sc3")}</p>
+          <p>{t("inspector.sc4")}</p>
+          <p>{t("inspector.sc5")}</p>
+          <p>{t("inspector.sc6")}</p>
         </div>
       </div>
     </div>

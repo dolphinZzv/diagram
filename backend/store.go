@@ -65,6 +65,14 @@ func NewStore(path string) (*Store, error) {
 			UNIQUE(diagram_id, version)
 		);
 		CREATE INDEX IF NOT EXISTS idx_versions_diagram ON diagram_versions(diagram_id, version DESC);
+
+		CREATE TABLE IF NOT EXISTS share_assets (
+			diagram_id TEXT NOT NULL,
+			format     TEXT NOT NULL,
+			data       BLOB NOT NULL,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY (diagram_id, format)
+		);
 	`); err != nil {
 		return nil, err
 	}

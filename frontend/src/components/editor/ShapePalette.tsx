@@ -4,8 +4,9 @@ import { MousePointerClick } from "lucide-react";
 import { Shape } from "./Shape";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/lib/store";
-import { defaultNodeData, SHAPE_LIST, SHAPE_LABELS, type ShapeType } from "@/lib/types";
+import { defaultNodeData, SHAPE_LIST, type ShapeType } from "@/lib/types";
 import { uid } from "@/lib/id";
+import { useT } from "@/lib/i18n";
 
 interface Preset {
   key: string;
@@ -65,6 +66,7 @@ function useViewportCenter() {
 }
 
 export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
+  const t = useT();
   const center = useViewportCenter();
   const addShapeNode = useEditor((s) => s.addShapeNode);
   const addNode = useEditor((s) => s.addNode);
@@ -97,7 +99,7 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
     const shape = PRESET_SHAPES[key] ?? "rounded";
     const data = {
       ...defaultNodeData(shape),
-      label: preset.label,
+      label: t(`arch.${preset.key}`),
       fill: preset.fill,
       stroke: preset.stroke,
       textColor: preset.textColor,
@@ -119,11 +121,13 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
     <div className="flex h-full flex-col overflow-y-auto">
       <div className="flex items-center gap-1.5 border-b bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
         <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
-        <span>拖拽到画布，或点击直接添加</span>
+        <span>{t("palette.hint")}</span>
       </div>
 
       <div className="p-3">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">基础形状</h3>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("palette.basic")}
+        </h3>
         <div className="grid grid-cols-3 gap-1.5">
           {SHAPE_LIST.map((shape) => (
             <button
@@ -132,12 +136,12 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
               draggable
               onDragStart={(e) => onDragStart(e, "shape", shape)}
               onClick={() => addShape(shape)}
-              title={`${SHAPE_LABELS[shape]}（拖拽或点击添加）`}
+              title={`${t(`shape.${shape}`)} · ${t("palette.hint")}`}
               className="flex cursor-grab flex-col items-center gap-1 rounded-md border border-transparent p-1.5 transition-colors hover:border-border hover:bg-accent active:cursor-grabbing"
             >
               <ShapeThumb shape={shape} />
               <span className="w-full truncate text-center text-[10px] text-muted-foreground">
-                {SHAPE_LABELS[shape]}
+                {t(`shape.${shape}`)}
               </span>
             </button>
           ))}
@@ -147,7 +151,9 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
       <Separator />
 
       <div className="p-3">
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">架构组件</h3>
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("palette.arch")}
+        </h3>
         <div className="grid grid-cols-2 gap-1.5">
           {ARCH_PRESETS.map((p) => (
             <button
@@ -156,14 +162,14 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
               draggable
               onDragStart={(e) => onDragStart(e, "preset", p.key)}
               onClick={() => addPreset(p.key)}
-              title={`${p.label}（拖拽或点击添加）`}
+              title={`${t(`arch.${p.key}`)} · ${t("palette.hint")}`}
               className="flex cursor-grab items-center gap-2 rounded-md border p-1.5 text-left transition-colors hover:bg-accent active:cursor-grabbing"
             >
               <span
                 className="pointer-events-none h-4 w-4 shrink-0 rounded"
                 style={{ background: p.fill, border: `2px solid ${p.stroke}` }}
               />
-              <span className="truncate text-[11px]">{p.label}</span>
+              <span className="truncate text-[11px]">{t(`arch.${p.key}`)}</span>
             </button>
           ))}
         </div>

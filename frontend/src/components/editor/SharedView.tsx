@@ -9,14 +9,20 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Download, Loader2, Workflow } from "lucide-react";
+import { Download, Image as ImageIcon, Loader2, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { nodeTypes, edgeTypes } from "./flow-types";
 import { normalizeEdges, normalizeNodes } from "@/lib/doc";
 import { api, type SharedDiagram } from "@/lib/api";
 import { exportImage } from "@/lib/exporter";
+import { useT } from "@/lib/i18n";
+import { useTheme, canvasColors } from "@/lib/theme";
 
 function Viewer({ doc }: { doc: SharedDiagram }) {
+  const t = useT();
+  const theme = useTheme((s) => s.theme);
+  const colors = canvasColors(theme);
+
   const nodes = useMemo<Node[]>(() => normalizeNodes(doc.data.nodes ?? []), [doc]);
   const edges = useMemo<Edge[]>(() => normalizeEdges(doc.data.edges ?? []), [doc]);
 
@@ -29,16 +35,23 @@ function Viewer({ doc }: { doc: SharedDiagram }) {
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{doc.name}</div>
           <div className="truncate text-[11px] text-muted-foreground">
-            只读分享 · 更新于 {new Date(doc.updatedAt).toLocaleString()}
+            {t("viewer.readonly")} · {t("viewer.updatedAt")} {new Date(doc.updatedAt).toLocaleString()}
           </div>
         </div>
-        <div className="ml-auto shrink-0">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => exportImage(nodes, "png", doc.name || "diagram").catch(() => undefined)}
+            onClick={() => exportImage(nodes, "svg", doc.name || "diagram", theme).catch(() => undefined)}
           >
-            <Download className="h-4 w-4" /> 导出 PNG
+            <ImageIcon className="h-4 w-4" /> SVG
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => exportImage(nodes, "png", doc.name || "diagram", theme).catch(() => undefined)}
+          >
+            <Download className="h-4 w-4" /> PNG
           </Button>
         </div>
       </header>
@@ -61,9 +74,10 @@ function Viewer({ doc }: { doc: SharedDiagram }) {
           panOnDrag
           minZoom={0.1}
           maxZoom={4}
+          colorMode={theme}
           proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="#cbd5e1" />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color={colors.dots} />
           <Controls className="!rounded-md !border !bg-background !shadow" showInteractive={false} />
         </ReactFlow>
       </div>
@@ -72,6 +86,7 @@ function Viewer({ doc }: { doc: SharedDiagram }) {
 }
 
 export function SharedView({ token }: { token: string }) {
+  const t = useT();
   const [doc, setDoc] = useState<SharedDiagram | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -101,7 +116,7 @@ export function SharedView({ token }: { token: string }) {
   if (loading) {
     return (
       <div className="flex h-[100dvh] items-center justify-center text-muted-foreground">
-        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> 加载中…
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> {t("viewer.loading")}
       </div>
     );
   }
@@ -110,7 +125,7 @@ export function SharedView({ token }: { token: string }) {
     return (
       <div className="flex h-[100dvh] flex-col items-center justify-center gap-3 text-muted-foreground">
         <Workflow className="h-10 w-10 opacity-30" />
-        <p className="text-sm">分享不存在或已关闭</p>
+        <p className="text-sm">{t("viewer.notFound")}</p>
       </div>
     );
   }

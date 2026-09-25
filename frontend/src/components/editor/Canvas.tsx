@@ -18,6 +18,8 @@ import { useEditor } from "@/lib/store";
 import { ARCH_PRESETS, PRESET_SHAPES } from "./ShapePalette";
 import { defaultNodeData, type ShapeType } from "@/lib/types";
 import { uid } from "@/lib/id";
+import { useTheme, canvasColors } from "@/lib/theme";
+import { useT } from "@/lib/i18n";
 
 export function Canvas() {
   const nodes = useEditor((s) => s.nodes);
@@ -28,6 +30,9 @@ export function Canvas() {
   const setSelection = useEditor((s) => s.setSelection);
   const addNode = useEditor((s) => s.addNode);
   const addShapeNode = useEditor((s) => s.addShapeNode);
+  const theme = useTheme((s) => s.theme);
+  const colors = canvasColors(theme);
+  const t = useT();
 
   const { screenToFlowPosition } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -55,7 +60,7 @@ export function Canvas() {
         const shape = PRESET_SHAPES[value] ?? "rounded";
         const data = {
           ...defaultNodeData(shape),
-          label: preset.label,
+          label: t(`arch.${value}`),
           fill: preset.fill,
           stroke: preset.stroke,
           textColor: preset.textColor,
@@ -71,7 +76,7 @@ export function Canvas() {
         addNode(node);
       }
     },
-    [addNode, addShapeNode, screenToFlowPosition]
+    [addNode, addShapeNode, screenToFlowPosition, t]
   );
 
   const onSelectionChange = useCallback(
@@ -102,15 +107,17 @@ export function Canvas() {
         proOptions={{ hideAttribution: true }}
         minZoom={0.1}
         maxZoom={4}
+        colorMode={theme}
         defaultEdgeOptions={{ type: "custom" }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color="#cbd5e1" />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1.4} color={colors.dots} />
         <Controls className="!rounded-md !border !bg-background !shadow" showInteractive={false} />
         <MiniMap
           className="!rounded-md !border"
           pannable
           zoomable
           nodeStrokeWidth={3}
+          maskColor={colors.minimapMask}
           nodeColor={(n) => (n.data?.fill as string) || "#e2e8f0"}
         />
       </ReactFlow>

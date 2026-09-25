@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Github, Info, KeyRound, RefreshCw, Settings } from "lucide-react";
+import { Github, Info, KeyRound, Languages, Moon, RefreshCw, Settings, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getToken, setToken } from "@/lib/api";
+import { useI18n, useT } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 interface VersionInfo {
   version: string;
@@ -21,6 +24,12 @@ interface VersionInfo {
 }
 
 export function AboutMenu() {
+  const t = useT();
+  const lang = useI18n((s) => s.lang);
+  const setLang = useI18n((s) => s.setLang);
+  const theme = useTheme((s) => s.theme);
+  const setTheme = useTheme((s) => s.setTheme);
+
   const [info, setInfo] = useState<VersionInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [token, setTokenState] = useState(getToken());
@@ -44,24 +53,24 @@ export function AboutMenu() {
         error?: string;
       };
       if (data.error) {
-        toast.error("检查更新失败", data.error);
+        toast.error(t("about.checkFail"), data.error);
       } else if (data.updateAvailable) {
-        toast.info(`发现新版本 ${data.latest}`, "运行 diagram update 或重新执行安装脚本进行更新");
+        toast.info(t("about.updateAvailable", { v: data.latest }), t("about.updateHint"));
         window.open(data.url, "_blank");
       } else {
-        toast.success("已是最新版本", data.current);
+        toast.success(t("about.upToDate"), data.current);
       }
     } catch (e) {
-      toast.error("检查更新失败", String(e));
+      toast.error(t("about.checkFail"), String(e));
     } finally {
       setChecking(false);
     }
-  }, []);
+  }, [t]);
 
   const saveToken = useCallback(() => {
     setToken(token.trim());
-    toast.success(token.trim() ? "已保存访问令牌" : "已清除访问令牌");
-  }, [token]);
+    toast.success(token.trim() ? t("about.tokenSaved") : t("about.tokenCleared"));
+  }, [token, t]);
 
   return (
     <DropdownMenu>
@@ -72,19 +81,72 @@ export function AboutMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="flex items-center gap-2">
-          <Info className="h-4 w-4" /> 关于 Diagram
+          <Info className="h-4 w-4" /> {t("about.title")}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
-          <div>版本：{info?.version ?? "…"}</div>
-          <div>提交：{info?.commit ?? "…"}</div>
-          <div>构建：{info?.date ? new Date(info.date).toLocaleDateString() : "…"}</div>
+          <div>
+            {t("about.version")}: {info?.version ?? "…"}
+          </div>
+          <div>
+            {t("about.commit")}: {info?.commit ?? "…"}
+          </div>
+          <div>
+            {t("about.build")}: {info?.date ? new Date(info.date).toLocaleDateString() : "…"}
+          </div>
         </div>
+
+        <DropdownMenuSeparator />
+
+        <div className="space-y-2 px-2 py-2" onPointerDown={(e) => e.stopPropagation()}>
+          <Label className="text-xs text-muted-foreground">{t("about.theme")}</Label>
+          <div className="grid grid-cols-2 gap-1">
+            <Button
+              size="sm"
+              variant={theme === "light" ? "default" : "outline"}
+              className="h-8"
+              onClick={() => setTheme("light")}
+            >
+              <Sun className="h-3.5 w-3.5" /> {t("about.light")}
+            </Button>
+            <Button
+              size="sm"
+              variant={theme === "dark" ? "default" : "outline"}
+              className="h-8"
+              onClick={() => setTheme("dark")}
+            >
+              <Moon className="h-3.5 w-3.5" /> {t("about.dark")}
+            </Button>
+          </div>
+
+          <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Languages className="h-3.5 w-3.5" /> {t("about.language")}
+          </Label>
+          <div className="grid grid-cols-2 gap-1">
+            <Button
+              size="sm"
+              variant={lang === "zh" ? "default" : "outline"}
+              className="h-8"
+              onClick={() => setLang("zh")}
+            >
+              中文
+            </Button>
+            <Button
+              size="sm"
+              variant={lang === "en" ? "default" : "outline"}
+              className="h-8"
+              onClick={() => setLang("en")}
+            >
+              English
+            </Button>
+          </div>
+        </div>
+
         <DropdownMenuSeparator />
 
         <div className="space-y-1.5 px-2 py-2" onPointerDown={(e) => e.stopPropagation()}>
           <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <KeyRound className="h-3.5 w-3.5" /> 访问令牌（服务端启用鉴权时填写）
+            <KeyRound className="h-3.5 w-3.5" /> {t("about.token")}
           </Label>
           <div className="flex gap-1.5">
             <Input
@@ -94,22 +156,22 @@ export function AboutMenu() {
                 e.stopPropagation();
                 if (e.key === "Enter") saveToken();
               }}
-              placeholder="DIAGRAM_TOKEN"
+              placeholder={t("about.tokenPlaceholder")}
               className="h-8 text-xs"
               type="password"
             />
             <Button size="sm" className="h-8" onClick={saveToken}>
-              保存
+              {t("about.save")}
             </Button>
           </div>
         </div>
 
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={checkUpdate} disabled={checking}>
-          <RefreshCw className={checking ? "h-4 w-4 animate-spin" : "h-4 w-4"} /> 检查更新
+          <RefreshCw className={cn("h-4 w-4", checking && "animate-spin")} /> {t("about.checkUpdate")}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => window.open("https://github.com/dolphinZzv/diagram", "_blank")}>
-          <Github className="h-4 w-4" /> GitHub 仓库
+          <Github className="h-4 w-4" /> {t("about.github")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

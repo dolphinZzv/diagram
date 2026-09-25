@@ -33,6 +33,14 @@ describe("defaultNodeData", () => {
       expect(d.height).toBeGreaterThan(0);
     }
   });
+
+  it("uses compact default sizes", () => {
+    for (const shape of SHAPE_LIST) {
+      const d = defaultNodeData(shape);
+      expect(d.width, `width for ${shape}`).toBeLessThanOrEqual(140);
+      expect(d.height, `height for ${shape}`).toBeLessThanOrEqual(130);
+    }
+  });
 });
 
 describe("defaultEdgeData", () => {

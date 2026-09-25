@@ -172,6 +172,7 @@ func newRouter(store *Store) http.Handler {
 	protected.HandleFunc("GET /api/diagrams/{id}/share", api.GetShare)
 	protected.HandleFunc("POST /api/diagrams/{id}/share", api.EnableShare)
 	protected.HandleFunc("DELETE /api/diagrams/{id}/share", api.DisableShare)
+	protected.HandleFunc("PUT /api/diagrams/{id}/share/image", api.UploadShareImage)
 	mux.Handle("/api/diagrams", authMiddleware(protected))
 	mux.Handle("/api/diagrams/", authMiddleware(protected))
 

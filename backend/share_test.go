@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -122,6 +123,94 @@ func TestShareRotateToken(t *testing.T) {
 	res, _ = rawReq(t, srv, http.MethodGet, "/api/share/"+t2, nil)
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("new token = %d, want 200", res.StatusCode)
+	}
+}
+
+func TestShareImageAssets(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newTestStore(t)))
+	defer srv.Close()
+
+	_, body := rawReq(t, srv, http.MethodPost, "/api/diagrams", map[string]any{
+		"name": "img",
+		"data": map[string]any{"nodes": []any{}, "edges": []any{}},
+	})
+	var created map[string]any
+	_ = json.Unmarshal(body, &created)
+	id := created["id"].(string)
+
+	_, body = rawReq(t, srv, http.MethodPost, "/api/diagrams/"+id+"/share", nil)
+	var share map[string]any
+	_ = json.Unmarshal(body, &share)
+	token, _ := share["token"].(string)
+	if token == "" {
+		t.Fatal("no share token")
+	}
+
+	// Before generating, the image does not exist.
+	res, _ := rawReq(t, srv, http.MethodGet, "/api/share/"+token+".svg", nil)
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("pre-upload svg = %d, want 404", res.StatusCode)
+	}
+
+	// Upload an SVG.
+	svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>`)
+	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/diagrams/"+id+"/share/image?format=svg", bytes.NewReader(svg))
+	req.Header.Set("Content-Type", "image/svg+xml")
+	r2, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("upload svg: %v", err)
+	}
+	r2.Body.Close()
+	if r2.StatusCode != http.StatusOK {
+		t.Fatalf("upload svg = %d", r2.StatusCode)
+	}
+
+	res, body = rawReq(t, srv, http.MethodGet, "/api/share/"+token+".svg", nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("get svg = %d", res.StatusCode)
+	}
+	if ct := res.Header.Get("Content-Type"); ct != "image/svg+xml" {
+		t.Errorf("svg content-type = %q", ct)
+	}
+	if !bytes.Contains(body, []byte("<svg")) {
+		t.Errorf("svg body = %s", body)
+	}
+
+	// Upload a PNG.
+	png := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+	req, _ = http.NewRequest(http.MethodPut, srv.URL+"/api/diagrams/"+id+"/share/image?format=png", bytes.NewReader(png))
+	r2, err = srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("upload png: %v", err)
+	}
+	r2.Body.Close()
+	if r2.StatusCode != http.StatusOK {
+		t.Fatalf("upload png = %d", r2.StatusCode)
+	}
+	res, body = rawReq(t, srv, http.MethodGet, "/api/share/"+token+".png", nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("get png = %d", res.StatusCode)
+	}
+	if ct := res.Header.Get("Content-Type"); ct != "image/png" {
+		t.Errorf("png content-type = %q", ct)
+	}
+	if !bytes.Equal(body, png) {
+		t.Errorf("png body mismatch: %v", body)
+	}
+
+	// Invalid format is rejected.
+	req, _ = http.NewRequest(http.MethodPut, srv.URL+"/api/diagrams/"+id+"/share/image?format=gif", bytes.NewReader(png))
+	r2, _ = srv.Client().Do(req)
+	r2.Body.Close()
+	if r2.StatusCode != http.StatusBadRequest {
+		t.Fatalf("invalid format = %d, want 400", r2.StatusCode)
+	}
+
+	// Deleting the diagram removes the shared image.
+	rawReq(t, srv, http.MethodDelete, "/api/diagrams/"+id, nil)
+	res, _ = rawReq(t, srv, http.MethodGet, "/api/share/"+token+".svg", nil)
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("after delete = %d, want 404", res.StatusCode)
 	}
 }
 

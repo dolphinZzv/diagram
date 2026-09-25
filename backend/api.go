@@ -161,6 +161,7 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = a.store.DeleteVersionsForDiagram(id)
+	_ = a.store.DeleteShareAssets(id)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 

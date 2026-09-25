@@ -16,6 +16,7 @@ import { api, type DiagramVersion } from "@/lib/api";
 import { normalizeEdges, normalizeNodes } from "@/lib/doc";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -23,11 +24,11 @@ interface Props {
   onOpenChange: (v: boolean) => void;
 }
 
-const ORIGIN_LABELS: Record<string, { text: string; className: string }> = {
-  create: { text: "创建", className: "bg-slate-100 text-slate-700" },
-  auto: { text: "自动", className: "bg-blue-50 text-blue-700" },
-  manual: { text: "手动", className: "bg-green-50 text-green-700" },
-  restore: { text: "恢复", className: "bg-amber-50 text-amber-700" },
+const ORIGIN_STYLES: Record<string, string> = {
+  create: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  auto: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  manual: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+  restore: "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
 };
 
 function formatTime(iso: string): string {
@@ -37,6 +38,7 @@ function formatTime(iso: string): string {
 }
 
 export function VersionHistory({ open, onOpenChange }: Props) {
+  const t = useT();
   const metaId = useEditor((s) => s.meta.id);
   const metaSaved = useEditor((s) => s.meta.saved);
   const loadDoc = useEditor((s) => s.loadDoc);
@@ -57,22 +59,18 @@ export function VersionHistory({ open, onOpenChange }: Props) {
     try {
       setVersions(await api.listVersions(metaId));
     } catch (e) {
-      toast.error("加载版本历史失败", String(e));
+      toast.error(t("version.historyFail"), String(e));
     } finally {
       setLoading(false);
     }
-  }, [metaId]);
+  }, [metaId, t]);
 
   useEffect(() => {
     if (open) refresh();
   }, [open, refresh]);
 
   const applyDoc = useCallback(
-    (
-      nodes: unknown[],
-      edges: unknown[],
-      viewport?: { x: number; y: number; zoom: number }
-    ) => {
+    (nodes: unknown[], edges: unknown[], viewport?: { x: number; y: number; zoom: number }) => {
       const n = normalizeNodes(nodes);
       const e = normalizeEdges(edges);
       loadDoc(n, e);
@@ -80,7 +78,6 @@ export function VersionHistory({ open, onOpenChange }: Props) {
         if (viewport) setViewport(viewport);
         else fitView({ padding: 0.3 });
       }, 40);
-      return { n, e };
     },
     [loadDoc, fitView, setViewport]
   );
@@ -94,82 +91,78 @@ export function VersionHistory({ open, onOpenChange }: Props) {
         applyDoc(full.data?.nodes ?? [], full.data?.edges ?? [], full.data?.viewport);
         setMeta({ saved: false });
         onOpenChange(false);
-        toast.success(`已载入 v${v.version}`, "当前为未保存状态，确认后可保存");
+        toast.success(t("version.loaded", { v: v.version }), t("version.loadedDesc"));
       } catch (e) {
-        toast.error("载入失败", String(e));
+        toast.error(t("version.loadFail"), String(e));
       } finally {
         setBusy(null);
       }
     },
-    [metaId, applyDoc, setMeta, onOpenChange]
+    [metaId, applyDoc, setMeta, onOpenChange, t]
   );
 
   const onRestore = useCallback(
     async (v: DiagramVersion) => {
       if (!metaId) return;
-      if (!confirm(`确定恢复到 v${v.version}？当前图纸内容将被替换。`)) return;
+      if (!confirm(t("version.confirmRestore", { v: v.version }))) return;
       setBusy(v.version);
       try {
         const res = await api.restoreVersion(metaId, v.version);
         applyDoc(res.diagram.data.nodes ?? [], res.diagram.data.edges ?? [], res.diagram.data.viewport);
         setMeta({ saved: true });
         onOpenChange(false);
-        toast.success(`已恢复到 v${v.version}`, `生成新版本 v${res.version.version}`);
+        toast.success(t("version.restored", { v: v.version }), t("version.restoredDesc", { nv: res.version.version }));
       } catch (e) {
-        toast.error("恢复失败", String(e));
+        toast.error(t("version.restoreFail"), String(e));
       } finally {
         setBusy(null);
       }
     },
-    [metaId, applyDoc, setMeta, onOpenChange]
+    [metaId, applyDoc, setMeta, onOpenChange, t]
   );
 
   const onDelete = useCallback(
     async (v: DiagramVersion) => {
       if (!metaId) return;
-      if (!confirm(`确定删除版本 v${v.version}？`)) return;
+      if (!confirm(t("version.confirmDelete", { v: v.version }))) return;
       try {
         await api.removeVersion(metaId, v.version);
-        toast.success(`已删除 v${v.version}`);
+        toast.success(t("version.deletedV", { v: v.version }));
         refresh();
       } catch (e) {
-        toast.error("删除失败", String(e));
+        toast.error(t("version.deleteFail"), String(e));
       }
     },
-    [metaId, refresh]
+    [metaId, refresh, t]
   );
 
   const onSnapshot = useCallback(async () => {
     if (!metaId) return;
-    if (!metaSaved) {
-      toast.info("请先保存图纸", "保存后会自动生成版本");
-    }
+    if (!metaSaved) toast.info(t("version.saveFirst"), t("version.saveFirstDesc"));
     try {
-      const v = await api.createVersion(metaId, label.trim() || "手动快照");
+      const v = await api.createVersion(metaId, label.trim() || t("version.snapshot"));
       setLabel("");
-      toast.success(`已创建版本 v${v.version}`);
+      toast.success(t("version.snapshotCreated", { v: v.version }));
       refresh();
     } catch (e) {
-      toast.error("创建版本失败", String(e));
+      toast.error(t("version.snapshotFail"), String(e));
     }
-  }, [metaId, metaSaved, label, refresh]);
+  }, [metaId, metaSaved, label, refresh, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <History className="h-4 w-4" /> 版本历史
+            <History className="h-4 w-4" /> {t("version.title")}
           </DialogTitle>
-          <DialogDescription>
-            每次保存会自动记录一个版本（内容无变化时不重复记录），最多保留 100 个。
-          </DialogDescription>
+          <DialogDescription>{t("version.desc")}</DialogDescription>
         </DialogHeader>
 
         {!metaId ? (
           <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
             <History className="h-8 w-8 opacity-40" />
-            <p className="text-sm">请先保存图纸，之后即可查看版本历史</p>
+            <p className="text-sm">{t("version.needSave")}</p>
           </div>
         ) : (
           <>
@@ -178,11 +171,11 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 onKeyDown={(e) => e.stopPropagation()}
-                placeholder="快照备注（可选）"
+                placeholder={t("version.snapshotPlaceholder")}
                 className="h-9 text-xs"
               />
               <Button size="sm" className="h-9 shrink-0" onClick={onSnapshot}>
-                <Camera className="h-4 w-4" /> 创建快照
+                <Camera className="h-4 w-4" /> {t("version.snapshot")}
               </Button>
             </div>
 
@@ -191,19 +184,22 @@ export function VersionHistory({ open, onOpenChange }: Props) {
             <ScrollArea className="h-[380px] pr-3">
               {loading ? (
                 <div className="flex h-40 items-center justify-center text-muted-foreground">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 加载中…
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("version.loading")}
                 </div>
               ) : versions.length === 0 ? (
                 <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-                  暂无版本
+                  {t("version.empty")}
                 </div>
               ) : (
                 <div className="space-y-1.5">
                   {versions.map((v, idx) => {
-                    const origin = ORIGIN_LABELS[v.origin] ?? {
-                      text: v.origin,
-                      className: "bg-slate-100 text-slate-700",
-                    };
+                    const originLabel =
+                      {
+                        create: t("version.originCreate"),
+                        auto: t("version.originAuto"),
+                        manual: t("version.originManual"),
+                        restore: t("version.originRestore"),
+                      }[v.origin] ?? v.origin;
                     const isLatest = idx === 0;
                     return (
                       <div
@@ -213,12 +209,17 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-sm font-semibold">v{v.version}</span>
-                            <span className={cn("rounded px-1.5 py-0.5 text-[10px]", origin.className)}>
-                              {origin.text}
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-[10px]",
+                                ORIGIN_STYLES[v.origin] ?? ORIGIN_STYLES.create
+                              )}
+                            >
+                              {originLabel}
                             </span>
                             {isLatest ? (
                               <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
-                                最新
+                                {t("version.latest")}
                               </span>
                             ) : null}
                             {v.label ? (
@@ -226,7 +227,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                             ) : null}
                           </div>
                           <div className="mt-0.5 text-[11px] text-muted-foreground">
-                            {formatTime(v.createdAt)} · {v.nodeCount} 节点 / {v.edgeCount} 连线
+                            {formatTime(v.createdAt)} · {t("version.scale", { nodes: v.nodeCount, edges: v.edgeCount })}
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-1">
@@ -234,7 +235,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            title="载入到画布（不保存）"
+                            title={t("version.load")}
                             disabled={busy === v.version}
                             onClick={() => onLoad(v)}
                           >
@@ -248,7 +249,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            title="恢复到此版本并保存"
+                            title={t("version.restore")}
                             disabled={busy === v.version}
                             onClick={() => onRestore(v)}
                           >
@@ -258,7 +259,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive"
-                            title="删除此版本"
+                            title={t("version.delete")}
                             onClick={() => onDelete(v)}
                           >
                             <Trash2 className="h-4 w-4" />

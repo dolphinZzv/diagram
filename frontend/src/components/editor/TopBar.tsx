@@ -15,6 +15,9 @@ import {
   LayoutTemplate,
   History,
   Share2,
+  MoreHorizontal,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +27,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -34,6 +40,8 @@ import { TEMPLATES } from "@/lib/templates";
 import { useReactFlow } from "@xyflow/react";
 import { toast } from "@/lib/toast";
 import { api } from "@/lib/api";
+import { useT } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { OpenDialog } from "./OpenDialog";
 import { VersionHistory } from "./VersionHistory";
 import { ShareDialog } from "./ShareDialog";
@@ -42,6 +50,10 @@ import { useShortcuts } from "@/hooks/useShortcuts";
 import { cn } from "@/lib/utils";
 
 export function TopBar() {
+  const t = useT();
+  const theme = useTheme((s) => s.theme);
+  const toggleTheme = useTheme((s) => s.toggle);
+
   const meta = useEditor((s) => s.meta);
   const setMeta = useEditor((s) => s.setMeta);
   const nodes = useEditor((s) => s.nodes);
@@ -72,26 +84,40 @@ export function TopBar() {
         if (meta.id && !forceNew) {
           await api.update(meta.id, { name: meta.name, description: meta.description, data: doc });
           setMeta({ saved: true, saving: false });
-          toast.success("已保存", meta.name);
+          toast.success(t("topbar.savedToast"), meta.name);
         } else {
           const created = await api.create({ name: meta.name, description: meta.description, data: doc });
           setMeta({ id: created.id, saved: true, saving: false });
-          toast.success("已创建并保存", meta.name);
+          toast.success(t("topbar.createdToast"), meta.name);
         }
       } catch (e) {
         setMeta({ saving: false });
-        toast.error("保存失败", String(e));
+        toast.error(t("topbar.saveFail"), String(e));
       }
     },
-    [buildDoc, meta.id, meta.name, meta.description, setMeta]
+    [buildDoc, meta.id, meta.name, meta.description, setMeta, t]
   );
 
   const onNew = useCallback(() => {
-    if (!meta.saved && !confirm("当前图纸未保存，确定新建吗？")) return;
+    if (!meta.saved && !confirm(t("topbar.confirmNew"))) return;
     loadDoc([], []);
-    setMeta({ id: null, name: "未命名流程图", description: "", saved: true });
+    setMeta({ id: null, name: t("topbar.untitled"), description: "", saved: true });
     setTimeout(() => fitView({ padding: 0.3 }), 30);
-  }, [meta.saved, loadDoc, setMeta, fitView]);
+  }, [meta.saved, loadDoc, setMeta, fitView, t]);
+
+  const onApplyTemplate = useCallback(
+    (id: string) => {
+      const tpl = TEMPLATES.find((x) => x.id === id);
+      if (!tpl) return;
+      if (!meta.saved && !confirm(t("topbar.confirmTemplate"))) return;
+      const { nodes: tn, edges: te } = tpl.build();
+      loadDoc(tn, te);
+      setMeta({ id: null, name: t(`template.${tpl.id}.name`), description: t(`template.${tpl.id}.desc`), saved: false });
+      setTimeout(() => fitView({ padding: 0.25 }), 40);
+      toast.success(t("topbar.templateApplied"), t(`template.${tpl.id}.name`));
+    },
+    [meta.saved, loadDoc, setMeta, fitView, t]
+  );
 
   const onImport = useCallback(
     async (file: File) => {
@@ -107,72 +133,73 @@ export function TopBar() {
         });
         if (doc.viewport) setTimeout(() => setViewport(doc.viewport!), 30);
         else setTimeout(() => fitView({ padding: 0.3 }), 30);
-        toast.success("导入成功", doc.name || file.name);
+        toast.success(t("topbar.importOk"), doc.name || file.name);
       } catch (e) {
-        toast.error("导入失败", String(e));
+        toast.error(t("topbar.importFail"), String(e));
       }
     },
-    [loadDoc, setMeta, setViewport, fitView]
+    [loadDoc, setMeta, setViewport, fitView, t]
   );
 
   const onExportJSON = useCallback(() => {
     exportJSON(buildDoc(), meta.name || "diagram");
-    toast.success("已导出 JSON");
-  }, [buildDoc, meta.name]);
+    toast.success(t("topbar.exportedJson"));
+  }, [buildDoc, meta.name, t]);
 
   const onExportImage = useCallback(
     async (format: "png" | "svg") => {
       try {
-        await exportImage(nodes, format, meta.name || "diagram");
-        toast.success(`已导出 ${format.toUpperCase()}`);
+        await exportImage(nodes, format, meta.name || "diagram", theme);
+        toast.success(t("topbar.exportedImage", { format: format.toUpperCase() }));
       } catch (e) {
-        toast.error("导出失败", String(e));
+        toast.error(t("topbar.exportFail"), String(e));
       }
     },
-    [nodes, meta.name]
+    [nodes, meta.name, t, theme]
   );
+
+  const onClear = useCallback(() => {
+    if (!confirm(t("topbar.confirmClear"))) return;
+    clearAll();
+    toast.info(t("topbar.cleared"));
+  }, [clearAll, t]);
 
   useShortcuts(() => onSave(false));
 
+  const statusDot = (
+    <span
+      className={cn("h-1.5 w-1.5 shrink-0 rounded-full", meta.saved ? "bg-green-500" : "bg-amber-500")}
+      title={meta.saving ? t("topbar.saving") : meta.saved ? t("topbar.saved") : t("topbar.unsaved")}
+    />
+  );
+
   return (
-    <header className="no-scrollbar flex h-14 shrink-0 items-center gap-2 overflow-x-auto border-b bg-background px-3 sm:gap-3">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 sm:gap-3">
       <div className="flex shrink-0 items-center gap-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Workflow className="h-4 w-4" />
         </div>
-        <span className="hidden text-sm font-semibold sm:block">Diagram</span>
       </div>
-
-      <div className="mx-2 h-6 w-px shrink-0 bg-border" />
 
       <Input
         value={meta.name}
         onChange={(e) => setMeta({ name: e.target.value, saved: false })}
-        className="h-8 w-28 shrink-0 border-transparent bg-transparent text-sm font-medium hover:border-input focus-visible:border-input sm:w-44"
+        className="h-8 min-w-0 flex-1 border-transparent bg-transparent text-sm font-medium hover:border-input focus-visible:border-input md:max-w-[180px] md:flex-none"
       />
-      <span
-        className={cn(
-          "hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex",
-          meta.saving && "opacity-60"
-        )}
-      >
-        <span
-          className={cn(
-            "h-1.5 w-1.5 rounded-full",
-            meta.saved ? "bg-green-500" : "bg-amber-500"
-          )}
-        />
-        {meta.saving ? "保存中…" : meta.saved ? "已保存" : "未保存"}
+      <span className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
+        {statusDot}
+        {meta.saving ? t("topbar.saving") : meta.saved ? t("topbar.saved") : t("topbar.unsaved")}
       </span>
 
-      <div className="ml-auto flex shrink-0 items-center gap-1">
+      {/* ---- Desktop toolbar ---- */}
+      <div className="ml-auto hidden items-center gap-1 md:flex">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8" disabled={past.length === 0} onClick={undo}>
               <Undo2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>撤销 (Ctrl+Z)</TooltipContent>
+          <TooltipContent>{t("topbar.undo")}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -180,113 +207,171 @@ export function TopBar() {
               <Redo2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>重做 (Ctrl+Shift+Z)</TooltipContent>
+          <TooltipContent>{t("topbar.redo")}</TooltipContent>
         </Tooltip>
 
         <div className="mx-1 h-6 w-px bg-border" />
 
         <Button variant="ghost" size="sm" className="h-8" onClick={onNew}>
-          <FilePlus2 className="h-4 w-4" /> <span className="hidden md:inline">新建</span>
+          <FilePlus2 className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.new")}</span>
         </Button>
         <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenOpen(true)}>
-          <FolderOpen className="h-4 w-4" /> <span className="hidden md:inline">打开</span>
+          <FolderOpen className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.open")}</span>
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8"
-          onClick={() => setOpenHistory(true)}
-          title="版本历史"
-        >
-          <History className="h-4 w-4" /> <span className="hidden md:inline">历史</span>
+        <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenHistory(true)}>
+          <History className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.history")}</span>
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8">
-              <LayoutTemplate className="h-4 w-4" /> <span className="hidden md:inline">模板</span>
+              <LayoutTemplate className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.templates")}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel>从模板创建</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("topbar.templateTitle")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {TEMPLATES.map((tpl) => (
-              <DropdownMenuItem
-                key={tpl.id}
-                onClick={() => {
-                  if (!meta.saved && !confirm("当前图纸未保存，确定使用模板替换吗？")) return;
-                  const { nodes: tn, edges: te } = tpl.build();
-                  loadDoc(tn, te);
-                  setMeta({ id: null, name: tpl.name, description: tpl.description, saved: false });
-                  setTimeout(() => fitView({ padding: 0.25 }), 40);
-                  toast.success("已应用模板", tpl.name);
-                }}
-              >
+              <DropdownMenuItem key={tpl.id} onClick={() => onApplyTemplate(tpl.id)}>
                 <div className="flex flex-col">
-                  <span>{tpl.name}</span>
-                  <span className="text-[11px] text-muted-foreground">{tpl.description}</span>
+                  <span>{t(`template.${tpl.id}.name`)}</span>
+                  <span className="text-[11px] text-muted-foreground">{t(`template.${tpl.id}.desc`)}</span>
                 </div>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="ghost" size="sm" className="h-8" onClick={() => onSave(false)}>
-          <Save className="h-4 w-4" /> <span className="hidden md:inline">保存</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8"
-          onClick={() => setOpenShare(true)}
-          title="分享（只读）"
-        >
-          <Share2 className="h-4 w-4" /> <span className="hidden md:inline">分享</span>
-        </Button>
 
+        <Button variant="ghost" size="sm" className="h-8" onClick={() => onSave(false)}>
+          <Save className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.save")}</span>
+        </Button>
+        <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenShare(true)}>
+          <Share2 className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.share")}</span>
+        </Button>
         <Button variant="ghost" size="sm" className="h-8" onClick={() => fileInput.current?.click()}>
-          <Upload className="h-4 w-4" /> <span className="hidden md:inline">导入</span>
+          <Upload className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.import")}</span>
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-8">
-              <Download className="h-4 w-4" /> <span className="hidden md:inline">导出</span>
+              <Download className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.export")}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>导出格式</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("topbar.exportTitle")}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onExportJSON}>
-              <FileJson className="h-4 w-4" /> 导出 JSON
+              <FileJson className="h-4 w-4" /> {t("topbar.exportJson")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onExportImage("png")}>
-              <FileImage className="h-4 w-4" /> 导出 PNG
+              <FileImage className="h-4 w-4" /> {t("topbar.exportPng")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onExportImage("svg")}>
-              <Image className="h-4 w-4" /> 导出 SVG
+              <Image className="h-4 w-4" /> {t("topbar.exportSvg")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive"
-              onClick={() => {
-                if (confirm("确定清空画布吗？")) {
-                  clearAll();
-                  toast.info("已清空画布");
-                }
-              }}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme} title={t("theme.toggle")}>
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("theme.toggle")}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onClear}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>清空画布</TooltipContent>
+          <TooltipContent>{t("topbar.clear")}</TooltipContent>
         </Tooltip>
 
+        <AboutMenu />
+      </div>
+
+      {/* ---- Mobile / tablet toolbar: primary actions + overflow ---- */}
+      <div className="ml-auto flex items-center gap-1 md:hidden">
+        {statusDot}
+        <Button variant="ghost" size="icon" className="h-9 w-9" disabled={past.length === 0} onClick={undo}>
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => onSave(false)}>
+          <Save className="h-4 w-4" />
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="icon" className="h-9 w-9">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem
+              onClick={redo}
+              disabled={future.length === 0}
+            >
+              <Redo2 className="h-4 w-4" /> {t("topbar.redo")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onNew}>
+              <FilePlus2 className="h-4 w-4" /> {t("topbar.new")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setOpenOpen(true)}>
+              <FolderOpen className="h-4 w-4" /> {t("topbar.open")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setOpenHistory(true)}>
+              <History className="h-4 w-4" /> {t("topbar.history")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setOpenShare(true)}>
+              <Share2 className="h-4 w-4" /> {t("topbar.share")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => fileInput.current?.click()}>
+              <Upload className="h-4 w-4" /> {t("topbar.import")}
+            </DropdownMenuItem>
+
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <LayoutTemplate className="h-4 w-4" /> {t("topbar.templates")}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-56">
+                {TEMPLATES.map((tpl) => (
+                  <DropdownMenuItem key={tpl.id} onClick={() => onApplyTemplate(tpl.id)}>
+                    {t(`template.${tpl.id}.name`)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Download className="h-4 w-4" /> {t("topbar.export")}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={onExportJSON}>
+                  <FileJson className="h-4 w-4" /> {t("topbar.exportJson")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExportImage("png")}>
+                  <FileImage className="h-4 w-4" /> {t("topbar.exportPng")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onExportImage("svg")}>
+                  <Image className="h-4 w-4" /> {t("topbar.exportSvg")}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={toggleTheme}>
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />} {t("theme.toggle")}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive" onClick={onClear}>
+              <Trash2 className="h-4 w-4" /> {t("topbar.clear")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <AboutMenu />
       </div>
 

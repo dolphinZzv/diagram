@@ -104,4 +104,18 @@ export const api = {
   enableShare: (id: string) => req<ShareState>(`/diagrams/${id}/share`, { method: "POST" }),
   disableShare: (id: string) => req<ShareState>(`/diagrams/${id}/share`, { method: "DELETE" }),
   getShared: (token: string) => req<SharedDiagram>(`/share/${token}`),
+
+  // Uploads a client-rendered image for a share token (raw bytes body).
+  uploadShareImage: async (id: string, format: "svg" | "png", blob: Blob) => {
+    const res = await fetch(`/api/diagrams/${id}/share/image?format=${format}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": format === "png" ? "image/png" : "image/svg+xml",
+        ...authHeaders(),
+      },
+      body: blob,
+    });
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return (await res.json()) as { format: string; bytes: number };
+  },
 };

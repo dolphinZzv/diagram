@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, Link2, Loader2, RefreshCw, Share2, ShieldOff } from "lucide-react";
+import { Check, Copy, FileImage, Image as ImageIcon, Link2, Loader2, RefreshCw, Share2, ShieldOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { api, type ShareState } from "@/lib/api";
 import { useEditor } from "@/lib/store";
+import { useT } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
+import { dataUrlToBlob, renderImage } from "@/lib/exporter";
 import { toast } from "@/lib/toast";
 
 interface Props {
@@ -45,12 +49,42 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
+function CopyRow({ label, value }: { label: string; value: string }) {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+  const onCopy = useCallback(async () => {
+    const ok = await copyText(value);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.success(t("share.linkCopied"));
+    } else {
+      toast.error(t("share.copyFail"), t("share.copyFailDesc"));
+    }
+  }, [value, t]);
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-16 shrink-0 text-[11px] text-muted-foreground">{label}</span>
+      <Input value={value} readOnly className="h-8 font-mono text-[11px]" onFocus={(e) => e.target.select()} />
+      <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={onCopy}>
+        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+      </Button>
+    </div>
+  );
+}
+
 export function ShareDialog({ open, onOpenChange }: Props) {
+  const t = useT();
+  const theme = useTheme((s) => s.theme);
   const metaId = useEditor((s) => s.meta.id);
+  const nodes = useEditor((s) => s.nodes);
+
   const [share, setShare] = useState<ShareState>({ enabled: false, token: "" });
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [genBusy, setGenBusy] = useState(false);
+  const [images, setImages] = useState({ svg: false, png: false });
 
   const refresh = useCallback(async () => {
     if (!metaId) {
@@ -59,7 +93,20 @@ export function ShareDialog({ open, onOpenChange }: Props) {
     }
     setLoading(true);
     try {
-      setShare(await api.getShare(metaId));
+      const s = await api.getShare(metaId);
+      setShare(s);
+      if (s.token) {
+        const check = async (format: "svg" | "png") => {
+          try {
+            const res = await fetch(`/api/share/${s.token}.${format}`, { method: "HEAD" });
+            return res.ok;
+          } catch {
+            return false;
+          }
+        };
+        const [svg, png] = await Promise.all([check("svg"), check("png")]);
+        setImages({ svg, png });
+      }
     } catch {
       setShare({ enabled: false, token: "" });
     } finally {
@@ -71,99 +118,128 @@ export function ShareDialog({ open, onOpenChange }: Props) {
     if (open) refresh();
   }, [open, refresh]);
 
-  const url = share.token
-    ? `${window.location.origin}${window.location.pathname}?share=${share.token}`
-    : "";
+  const url = share.token ? `${window.location.origin}${window.location.pathname}?share=${share.token}` : "";
+  const svgUrl = share.token ? `${window.location.origin}/api/share/${share.token}.svg` : "";
+  const pngUrl = share.token ? `${window.location.origin}/api/share/${share.token}.png` : "";
 
   const onEnable = useCallback(async () => {
     if (!metaId) return;
     setBusy(true);
     try {
       setShare(await api.enableShare(metaId));
-      toast.success("已开启分享", "任何人可通过链接只读查看");
+      toast.success(t("share.enabledToast"), t("share.enabledDesc"));
     } catch (e) {
-      toast.error("开启分享失败", String(e));
+      toast.error(t("share.enableFail"), String(e));
     } finally {
       setBusy(false);
     }
-  }, [metaId]);
+  }, [metaId, t]);
 
   const onDisable = useCallback(async () => {
     if (!metaId) return;
-    if (!confirm("关闭分享后，原链接将立即失效，确定吗？")) return;
+    if (!confirm(t("share.confirmDisable"))) return;
     setBusy(true);
     try {
       setShare(await api.disableShare(metaId));
-      toast.info("已关闭分享");
+      setImages({ svg: false, png: false });
+      toast.info(t("share.disabledToast"));
     } catch (e) {
-      toast.error("关闭分享失败", String(e));
+      toast.error(t("share.disableFail"), String(e));
     } finally {
       setBusy(false);
     }
-  }, [metaId]);
+  }, [metaId, t]);
 
-  const onCopy = useCallback(async () => {
-    const ok = await copyText(url);
-    if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-      toast.success("链接已复制");
-    } else {
-      toast.error("复制失败", "请手动选择链接复制");
+  const onGenerateImages = useCallback(async () => {
+    if (!metaId || !share.token) return;
+    setGenBusy(true);
+    try {
+      const [svgData, pngData] = await Promise.all([
+        renderImage(nodes, "svg", theme, 1),
+        renderImage(nodes, "png", theme, 2),
+      ]);
+      await api.uploadShareImage(metaId, "svg", await dataUrlToBlob(svgData));
+      await api.uploadShareImage(metaId, "png", await dataUrlToBlob(pngData));
+      setImages({ svg: true, png: true });
+      toast.success(t("share.imageGenerated"));
+    } catch (e) {
+      toast.error(t("share.imageFail"), String(e));
+    } finally {
+      setGenBusy(false);
     }
-  }, [url]);
+  }, [metaId, share.token, nodes, theme, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Share2 className="h-4 w-4" /> 分享（只读）
+            <Share2 className="h-4 w-4" /> {t("share.title")}
           </DialogTitle>
-          <DialogDescription>
-            生成一个只读链接，任何人打开后可以查看、缩放、导出，但无法编辑。
-          </DialogDescription>
+          <DialogDescription>{t("share.desc")}</DialogDescription>
         </DialogHeader>
 
         {!metaId ? (
           <div className="flex h-32 flex-col items-center justify-center gap-2 text-muted-foreground">
             <Share2 className="h-8 w-8 opacity-40" />
-            <p className="text-sm">请先保存图纸，之后即可生成分享链接</p>
+            <p className="text-sm">{t("share.needSave")}</p>
           </div>
         ) : loading ? (
           <div className="flex h-32 items-center justify-center text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 加载中…
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("share.loading")}
           </div>
         ) : share.enabled ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Link2 className="h-4 w-4 text-muted-foreground" />
-              <Input value={url} readOnly className="h-9 font-mono text-xs" onFocus={(e) => e.target.select()} />
-              <Button size="sm" className="h-9 shrink-0" onClick={onCopy}>
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? "已复制" : "复制"}
-              </Button>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <Link2 className="h-3.5 w-3.5" /> {t("share.link")}
+              </div>
+              <CopyRow label="" value={url} />
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={onEnable} disabled={busy}>
+                  <RefreshCw className={busy ? "h-4 w-4 animate-spin" : "h-4 w-4"} /> {t("share.regen")}
+                </Button>
+                <Button variant="outline" size="sm" className="text-destructive" onClick={onDisable} disabled={busy}>
+                  <ShieldOff className="h-4 w-4" /> {t("share.disable")}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => window.open(url, "_blank")}>
+                  {t("share.preview")}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">{t("share.hint")}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={onEnable} disabled={busy}>
-                <RefreshCw className={busy ? "h-4 w-4 animate-spin" : "h-4 w-4"} /> 重新生成链接
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">{t("share.imageSection")}</div>
+              <p className="text-[11px] text-muted-foreground">{t("share.imageHint")}</p>
+              <Button size="sm" onClick={onGenerateImages} disabled={genBusy || nodes.length === 0}>
+                {genBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                {t("share.publishImage")}
               </Button>
-              <Button variant="outline" size="sm" className="text-destructive" onClick={onDisable} disabled={busy}>
-                <ShieldOff className="h-4 w-4" /> 关闭分享
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => window.open(url, "_blank")}>
-                预览
-              </Button>
+              {(!images.svg && !images.png) && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">{t("share.imageNotReady")}</p>
+              )}
+              {images.svg && (
+                <div className="flex items-center gap-2">
+                  <FileImage className="h-3.5 w-3.5 text-muted-foreground" />
+                  <CopyRow label={t("share.imageSvg")} value={svgUrl} />
+                </div>
+              )}
+              {images.png && (
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <CopyRow label={t("share.imagePng")} value={pngUrl} />
+                </div>
+              )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              提示：重新生成会使旧链接立即失效；关闭分享会彻底禁用该链接。
-            </p>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">当前未开启分享。</p>
+            <p className="text-sm text-muted-foreground">{t("share.notEnabled")}</p>
             <Button onClick={onEnable} disabled={busy}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />} 开启分享
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />} {t("share.enable")}
             </Button>
           </div>
         )}

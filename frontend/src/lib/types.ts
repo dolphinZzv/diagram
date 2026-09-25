@@ -93,8 +93,8 @@ export function defaultNodeData(shape: ShapeType = "rect"): ShapeNodeData {
     stroke: "#475569",
     strokeWidth: 2,
     rotation: 0,
-    width: 160,
-    height: 80,
+    width: 120,
+    height: 60,
     fontSize: 14,
     textColor: "#0f172a",
     opacity: 1,
@@ -103,42 +103,42 @@ export function defaultNodeData(shape: ShapeType = "rect"): ShapeNodeData {
     fontStyle: "normal",
   };
   if (shape === "ellipse") {
-    base.width = 140;
-    base.height = 90;
+    base.width = 110;
+    base.height = 70;
   }
   if (shape === "diamond") {
-    base.width = 140;
-    base.height = 100;
+    base.width = 120;
+    base.height = 80;
   }
   if (shape === "triangle") {
-    base.width = 140;
-    base.height = 110;
-  }
-  if (shape === "cylinder") {
-    base.width = 120;
-    base.height = 120;
-  }
-  if (shape === "document") {
-    base.width = 140;
-    base.height = 170;
-  }
-  if (shape === "hexagon") {
-    base.width = 160;
+    base.width = 110;
     base.height = 90;
   }
+  if (shape === "cylinder") {
+    base.width = 96;
+    base.height = 96;
+  }
+  if (shape === "document") {
+    base.width = 110;
+    base.height = 130;
+  }
+  if (shape === "hexagon") {
+    base.width = 130;
+    base.height = 70;
+  }
   if (shape === "cloud") {
-    base.width = 180;
-    base.height = 110;
+    base.width = 140;
+    base.height = 90;
   }
   if (shape === "star") {
-    base.width = 160;
-    base.height = 150;
+    base.width = 120;
+    base.height = 110;
   }
   if (shape === "text") {
     base.fill = "transparent";
     base.stroke = "transparent";
-    base.width = 160;
-    base.height = 60;
+    base.width = 120;
+    base.height = 48;
   }
   return base;
 }
