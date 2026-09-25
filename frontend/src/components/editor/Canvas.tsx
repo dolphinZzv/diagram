@@ -52,6 +52,7 @@ import { copyText } from "@/lib/clipboard";
 import { toast } from "@/lib/toast";
 import { ContextMenu, type CtxItem } from "./ContextMenu";
 import { ActionSheet } from "./ActionSheet";
+import { SequenceMessageDialog } from "./SequenceMessageDialog";
 import { HelperLines } from "./HelperLines";
 import { EmptyState } from "./EmptyState";
 
@@ -364,29 +365,7 @@ export function Canvas() {
               {
                 label: t("seq.addMessage"),
                 icon: <Send className="h-4 w-4" />,
-                onClick: () => {
-                  const selectedLifelines = s.selectedIds
-                    .map((sid) => s.nodes.find((n) => n.id === sid))
-                    .filter((n): n is Node => !!n && n.type === "lifeline");
-                  let targetId: string | undefined;
-                  if (selectedLifelines.length >= 2) {
-                    const sorted = [...selectedLifelines].sort((a, b) => a.position.x - b.position.x);
-                    const me = sorted.find((n) => n.id === id) ?? sorted[0];
-                    targetId = sorted.find((n) => n.id !== me.id)?.id;
-                  } else {
-                    targetId = s.nodes
-                      .filter(
-                        (n) =>
-                          n.type === "lifeline" &&
-                          n.id !== id &&
-                          n.position.x > (node?.position.x ?? 0)
-                      )
-                      .sort((a, b) => a.position.x - b.position.x)[0]?.id;
-                  }
-                  if (!targetId) return;
-                  const edgeId = s.addMessage(id, targetId);
-                  if (edgeId && compact) useUi.getState().setInspectorOpen(true);
-                },
+                onClick: () => useUi.getState().openMessageDialog(id),
               } as CtxItem,
               { label: t("seq.addParticipant"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addParticipant() },
             ]
@@ -543,6 +522,8 @@ export function Canvas() {
           items={buildItems(actionSheet.kind, actionSheet.id)}
         />
       ) : null}
+
+      <SequenceMessageDialog />
     </div>
   );
 }

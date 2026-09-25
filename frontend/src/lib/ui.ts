@@ -17,6 +17,10 @@ interface UiState {
   actionSheet: { open: boolean; kind: "node" | "edge" | "pane"; id?: string };
   openActionSheet: (kind: "node" | "edge" | "pane", id?: string) => void;
   closeActionSheet: () => void;
+  /** Sequence-diagram message composer. */
+  messageDialog: { open: boolean; sourceId?: string };
+  openMessageDialog: (sourceId?: string) => void;
+  closeMessageDialog: () => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -31,6 +35,9 @@ export const useUi = create<UiState>((set) => ({
   actionSheet: { open: false, kind: "pane" },
   openActionSheet: (kind, id) => set({ actionSheet: { open: true, kind, id } }),
   closeActionSheet: () => set({ actionSheet: { open: false, kind: "pane" } }),
+  messageDialog: { open: false },
+  openMessageDialog: (sourceId) => set({ messageDialog: { open: true, sourceId } }),
+  closeMessageDialog: () => set({ messageDialog: { open: false } }),
 }));
 
 /** True on phones / tablets where the editor uses drawers. */

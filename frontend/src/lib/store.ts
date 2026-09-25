@@ -9,7 +9,7 @@ import {
   applyEdgeChanges,
   addEdge,
 } from "@xyflow/react";
-import { defaultEdgeData, defaultNodeData, type ShapeNodeData, type EdgeData } from "./types";
+import { defaultEdgeData, defaultNodeData, type ShapeNodeData, type EdgeData, type LineStyle } from "./types";
 import { uid } from "./id";
 import { defaultShapeLabel, tr } from "./i18n";
 import { layoutLayered } from "./layout";
@@ -81,7 +81,7 @@ interface EditorState {
   addChildNode: (parentId: string) => void;
   addSiblingNode: (nodeId: string) => void;
   addParticipant: () => void;
-  addMessage: (sourceId: string, targetId: string, label?: string) => string | undefined;
+  addMessage: (sourceId: string, targetId: string, label?: string, lineStyle?: LineStyle) => string | undefined;
 
   loadDoc: (nodes: Node[], edges: Edge[]) => void;
   clearAll: () => void;
@@ -721,7 +721,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     });
   },
 
-  addMessage: (sourceId, targetId, label) => {
+  addMessage: (sourceId, targetId, label, lineStyle) => {
     const { nodes, edges, pushHistory } = get();
     const source = nodes.find((n) => n.id === sourceId);
     const target = nodes.find((n) => n.id === targetId);
@@ -750,6 +750,7 @@ export const useEditor = create<EditorState>((set, get) => ({
         label: label ?? tr("seq.message"),
         pathType: "straight",
         arrowType: "arrowclosed",
+        lineStyle: lineStyle ?? "solid",
       },
     };
     set({

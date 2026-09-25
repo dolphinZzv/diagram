@@ -19,6 +19,7 @@ import { ICON_KEYS } from "./icons";
 import { useEditor, type AlignMode } from "@/lib/store";
 import { SHAPE_LIST, type EdgeData, type ShapeNodeData } from "@/lib/types";
 import { useT } from "@/lib/i18n";
+import { useUi } from "@/lib/ui";
 import { cn } from "@/lib/utils";
 
 function Row({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
@@ -336,17 +337,10 @@ function LifelineInspector({ id, data }: { id: string; data: ShapeNodeData }) {
   const update = useEditor((s) => s.updateNodeData);
   const remove = useEditor((s) => s.removeSelected);
   const setSelected = useEditor((s) => s.setSelected);
-  const addMessage = useEditor((s) => s.addMessage);
   const addParticipant = useEditor((s) => s.addParticipant);
 
   const addToNext = () => {
-    const s = useEditor.getState();
-    const me = s.nodes.find((n) => n.id === id);
-    if (!me) return;
-    const next = s.nodes
-      .filter((n) => n.type === "lifeline" && n.id !== id && n.position.x > me.position.x)
-      .sort((a, b) => a.position.x - b.position.x)[0];
-    if (next) addMessage(id, next.id);
+    useUi.getState().openMessageDialog(id);
   };
 
   return (
