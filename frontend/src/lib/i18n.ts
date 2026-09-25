@@ -380,7 +380,7 @@ const zh: Dict = {
   "draft.restoredDesc": "检测到上次未保存的草稿，已为你恢复。",
 
   "editor.copied": "已复制图形",
-  "shortcut.longPress": "长按图形复制",
+  "shortcut.longPress": "长按图形/空白打开操作菜单",
   "shortcut.doubleTap": "双击图形打开属性",
 
   "empty.title": "开始你的第一张图",
@@ -388,7 +388,7 @@ const zh: Dict = {
   "empty.template": "从模板开始",
   "empty.addShape": "添加图形",
   "empty.shortcuts": "快捷键",
-  "empty.hint": "双击图形编辑文字 · 长按图形复制 · 拖拽空白处框选",
+  "empty.hint": "双击图形编辑文字 · 长按打开操作菜单 · 拖拽空白处框选",
   "empty.mcpTitle": "用 AI Agent 生成（MCP）",
   "empty.mcpDesc": "已内置 MCP server，Claude / Cursor 等可直接创建与编辑流程图。",
   "empty.mcpEndpoint": "HTTP 端点",
@@ -410,6 +410,10 @@ const zh: Dict = {
   "ctx.selectAll": "全选",
   "ctx.fitView": "适应视图",
   "ctx.zoomReset": "重置缩放",
+  "action.nodeTitle": "图形操作",
+  "action.edgeTitle": "连线操作",
+  "action.canvasTitle": "画布操作",
+  "action.hint": "长按图形/空白处可打开此菜单",
   "about.autoSave": "自动保存",
 
   "mindmap.child": "子主题",
@@ -800,7 +804,7 @@ const en: Dict = {
   "draft.restoredDesc": "We found an unsaved draft from your last session and restored it.",
 
   "editor.copied": "Shape copied",
-  "shortcut.longPress": "Long-press a shape to copy",
+  "shortcut.longPress": "Long-press to open the action menu",
   "shortcut.doubleTap": "Double-tap a shape to edit",
 
   "empty.title": "Start your first diagram",
@@ -808,7 +812,7 @@ const en: Dict = {
   "empty.template": "Start from a template",
   "empty.addShape": "Add a shape",
   "empty.shortcuts": "Shortcuts",
-  "empty.hint": "Double-click to edit · long-press to copy · drag empty space to marquee",
+  "empty.hint": "Double-click to edit · long-press for actions · drag empty space to marquee",
   "empty.mcpTitle": "Generate with an AI agent (MCP)",
   "empty.mcpDesc": "A built-in MCP server lets Claude / Cursor create and edit diagrams directly.",
   "empty.mcpEndpoint": "HTTP endpoint",
@@ -830,6 +834,10 @@ const en: Dict = {
   "ctx.selectAll": "Select all",
   "ctx.fitView": "Fit view",
   "ctx.zoomReset": "Reset zoom",
+  "action.nodeTitle": "Shape actions",
+  "action.edgeTitle": "Edge actions",
+  "action.canvasTitle": "Canvas actions",
+  "action.hint": "Long-press a shape or empty space to open this menu",
   "about.autoSave": "Auto-save",
 
   "mindmap.child": "Subtopic",

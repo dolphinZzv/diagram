@@ -50,6 +50,7 @@ import { exportMermaid } from "@/lib/exporter";
 import { copyText } from "@/lib/clipboard";
 import { toast } from "@/lib/toast";
 import { ContextMenu, type CtxItem } from "./ContextMenu";
+import { ActionSheet } from "./ActionSheet";
 import { HelperLines } from "./HelperLines";
 import { EmptyState } from "./EmptyState";
 
@@ -276,16 +277,68 @@ export function Canvas() {
     setMenu({ x: event.clientX, y: event.clientY, kind: "pane" });
   }, []);
 
-  const menuItems = useMemo<(CtxItem | "separator")[]>(() => {
-    if (!menu) return [];
-    const s = useEditor.getState();
-    const id = menu.id;
+  // Long-press (touch/pen) opens the bottom action sheet.
+  const startLongPress = useCallback((event: React.PointerEvent) => {
+    if (event.pointerType === "mouse") return;
+    const el = event.target as Element | null;
+    if (!el || typeof el.closest !== "function") return;
+    const nodeEl = el.closest(".react-flow__node") as HTMLElement | null;
+    const edgeEl = el.closest(".react-flow__edge") as HTMLElement | null;
+    const paneEl = el.closest(".react-flow__pane") as HTMLElement | null;
+    let kind: "node" | "edge" | "pane" = "pane";
+    let id: string | undefined;
+    if (nodeEl) {
+      kind = "node";
+      id = nodeEl.getAttribute("data-id") ?? undefined;
+    } else if (edgeEl) {
+      kind = "edge";
+      id = edgeEl.getAttribute("data-id") ?? undefined;
+    } else if (!paneEl) {
+      return;
+    }
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let timer = 0;
+    let done = false;
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", cleanup);
+      window.removeEventListener("pointercancel", cleanup);
+    };
+    function onMove(ev: PointerEvent) {
+      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 10) cleanup();
+    }
+    timer = window.setTimeout(() => {
+      cleanup();
+      const editor = useEditor.getState();
+      if (kind === "node" && id) {
+        editor.setSelection([id]);
+        useUi.getState().openActionSheet("node", id);
+      } else if (kind === "edge" && id) {
+        editor.setSelection([id]);
+        useUi.getState().openActionSheet("edge", id);
+      } else {
+        useUi.getState().openActionSheet("pane");
+      }
+    }, 480);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", cleanup);
+    window.addEventListener("pointercancel", cleanup);
+  }, []);
+
+  const buildItems = useCallback(
+    (kind: "node" | "edge" | "pane", id?: string): (CtxItem | "separator")[] => {
+      const s = useEditor.getState();
     const selection = id && s.selectedIds.includes(id) ? s.selectedIds : id ? [id] : [];
     const select = () => {
       if (id) s.setSelection([id]);
     };
 
-    if (menu.kind === "node" && id) {
+    if (kind === "node" && id) {
       const node = s.nodes.find((n) => n.id === id);
       const locked = !!(node?.data as { locked?: boolean } | undefined)?.locked;
       const idSet = new Set(selection);
@@ -312,7 +365,7 @@ export function Canvas() {
       ];
     }
 
-    if (menu.kind === "edge" && id) {
+    if (kind === "edge" && id) {
       return [
         { label: t("ctx.edit"), icon: <Pencil className="h-4 w-4" />, onClick: () => openInspector(id) },
         "separator",
@@ -349,12 +402,27 @@ export function Canvas() {
       { label: t("ctx.fitView"), icon: <Maximize2 className="h-4 w-4" />, onClick: () => fitView({ padding: 0.25 }) },
       { label: t("ctx.zoomReset"), icon: <ZoomIn className="h-4 w-4" />, onClick: () => zoomTo(1) },
     ];
-  }, [menu, t, openInspector, fitView, zoomTo]);
+    },
+    [t, openInspector, fitView, zoomTo]
+  );
+
+  const menuItems = useMemo<(CtxItem | "separator")[]>(
+    () => (menu ? buildItems(menu.kind, menu.id) : []),
+    [menu, buildItems]
+  );
+  const actionSheet = useUi((s) => s.actionSheet);
+  const closeActionSheet = useUi((s) => s.closeActionSheet);
 
   const showEmpty = nodes.length === 0 && edges.length === 0;
 
   return (
-    <div ref={wrapperRef} className="h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
+    <div
+      ref={wrapperRef}
+      className="h-full w-full"
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+      onPointerDown={startLongPress}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -416,6 +484,23 @@ export function Canvas() {
       {showEmpty ? <EmptyState /> : null}
 
       {menu ? <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} /> : null}
+
+      {actionSheet.open ? (
+        <ActionSheet
+          open={actionSheet.open}
+          onOpenChange={(v) => {
+            if (!v) closeActionSheet();
+          }}
+          title={
+            actionSheet.kind === "node"
+              ? t("action.nodeTitle")
+              : actionSheet.kind === "edge"
+                ? t("action.edgeTitle")
+                : t("action.canvasTitle")
+          }
+          items={buildItems(actionSheet.kind, actionSheet.id)}
+        />
+      ) : null}
     </div>
   );
 }

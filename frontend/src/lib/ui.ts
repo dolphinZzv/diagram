@@ -13,6 +13,10 @@ interface UiState {
   /** When true, dragging on the canvas draws a marquee selection. */
   selectMode: boolean;
   setSelectMode: (v: boolean) => void;
+  /** Touch action sheet (long-press menu). */
+  actionSheet: { open: boolean; kind: "node" | "edge" | "pane"; id?: string };
+  openActionSheet: (kind: "node" | "edge" | "pane", id?: string) => void;
+  closeActionSheet: () => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -24,6 +28,9 @@ export const useUi = create<UiState>((set) => ({
   setInspectorOpen: (v) => set({ inspectorOpen: v }),
   selectMode: false,
   setSelectMode: (v) => set({ selectMode: v }),
+  actionSheet: { open: false, kind: "pane" },
+  openActionSheet: (kind, id) => set({ actionSheet: { open: true, kind, id } }),
+  closeActionSheet: () => set({ actionSheet: { open: false, kind: "pane" } }),
 }));
 
 /** True on phones / tablets where the editor uses drawers. */
