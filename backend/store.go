@@ -49,6 +49,21 @@ func NewStore(path string) (*Store, error) {
 			updated_at  TEXT NOT NULL
 		);
 		CREATE INDEX IF NOT EXISTS idx_diagrams_updated ON diagrams(updated_at DESC);
+
+		CREATE TABLE IF NOT EXISTS diagram_versions (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			diagram_id  TEXT NOT NULL,
+			version     INTEGER NOT NULL,
+			label       TEXT NOT NULL DEFAULT '',
+			origin      TEXT NOT NULL DEFAULT 'auto',
+			hash        TEXT NOT NULL DEFAULT '',
+			data        TEXT NOT NULL,
+			node_count  INTEGER NOT NULL DEFAULT 0,
+			edge_count  INTEGER NOT NULL DEFAULT 0,
+			created_at  TEXT NOT NULL,
+			UNIQUE(diagram_id, version)
+		);
+		CREATE INDEX IF NOT EXISTS idx_versions_diagram ON diagram_versions(diagram_id, version DESC);
 	`); err != nil {
 		return nil, err
 	}

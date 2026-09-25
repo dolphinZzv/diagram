@@ -10,6 +10,18 @@ export interface DiagramRecord extends DiagramListItem {
   data: { nodes: unknown[]; edges: unknown[]; viewport?: { x: number; y: number; zoom: number } };
 }
 
+export interface DiagramVersion {
+  id: number;
+  diagramId: string;
+  version: number;
+  label: string;
+  origin: string; // create | auto | manual | restore
+  nodeCount: number;
+  edgeCount: number;
+  createdAt: string;
+  data?: { nodes: unknown[]; edges: unknown[]; viewport?: { x: number; y: number; zoom: number } };
+}
+
 const base = "/api";
 
 /** Token is stored in localStorage and sent as a Bearer header when the
@@ -57,4 +69,21 @@ export const api = {
   update: (id: string, body: { name: string; description?: string; data: unknown }) =>
     req<DiagramRecord>(`/diagrams/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   remove: (id: string) => req<{ status: string }>(`/diagrams/${id}`, { method: "DELETE" }),
+
+  // ---- version history ----
+  listVersions: (id: string) => req<DiagramVersion[]>(`/diagrams/${id}/versions`),
+  getVersion: (id: string, version: number) =>
+    req<DiagramVersion>(`/diagrams/${id}/versions/${version}`),
+  createVersion: (id: string, label: string) =>
+    req<DiagramVersion>(`/diagrams/${id}/versions`, {
+      method: "POST",
+      body: JSON.stringify({ label }),
+    }),
+  restoreVersion: (id: string, version: number) =>
+    req<{ diagram: DiagramRecord; version: DiagramVersion }>(
+      `/diagrams/${id}/versions/${version}/restore`,
+      { method: "POST" }
+    ),
+  removeVersion: (id: string, version: number) =>
+    req<{ status: string }>(`/diagrams/${id}/versions/${version}`, { method: "DELETE" }),
 };

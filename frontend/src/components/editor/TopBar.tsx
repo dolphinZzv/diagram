@@ -13,6 +13,7 @@ import {
   Trash2,
   FileImage,
   LayoutTemplate,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import { useReactFlow } from "@xyflow/react";
 import { toast } from "@/lib/toast";
 import { api } from "@/lib/api";
 import { OpenDialog } from "./OpenDialog";
+import { VersionHistory } from "./VersionHistory";
 import { AboutMenu } from "./AboutMenu";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { cn } from "@/lib/utils";
@@ -52,6 +54,7 @@ export function TopBar() {
   const { getViewport, setViewport, fitView } = useReactFlow();
   const fileInput = useRef<HTMLInputElement>(null);
   const [openOpen, setOpenOpen] = useState(false);
+  const [openHistory, setOpenHistory] = useState(false);
 
   const buildDoc = useCallback(
     () => serializeDoc(nodes, edges, meta.name, meta.description, getViewport()),
@@ -185,6 +188,15 @@ export function TopBar() {
         <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenOpen(true)}>
           <FolderOpen className="h-4 w-4" /> <span className="hidden md:inline">打开</span>
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8"
+          onClick={() => setOpenHistory(true)}
+          title="版本历史"
+        >
+          <History className="h-4 w-4" /> <span className="hidden md:inline">历史</span>
+        </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -279,6 +291,7 @@ export function TopBar() {
       />
 
       <OpenDialog open={openOpen} onOpenChange={setOpenOpen} />
+      <VersionHistory open={openHistory} onOpenChange={setOpenHistory} />
     </header>
   );
 }

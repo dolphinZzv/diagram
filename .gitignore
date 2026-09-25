@@ -30,3 +30,6 @@ pnpm-debug.log*
 
 # Logs
 *.log
+
+# Go build output in package dir
+backend/backend

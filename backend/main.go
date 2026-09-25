@@ -158,6 +158,13 @@ func newRouter(store *Store) http.Handler {
 	protected.HandleFunc("GET /api/diagrams/{id}", api.Get)
 	protected.HandleFunc("PUT /api/diagrams/{id}", api.Update)
 	protected.HandleFunc("DELETE /api/diagrams/{id}", api.Delete)
+
+	// Version history (revisions).
+	protected.HandleFunc("GET /api/diagrams/{id}/versions", api.ListVersions)
+	protected.HandleFunc("POST /api/diagrams/{id}/versions", api.CreateVersion)
+	protected.HandleFunc("GET /api/diagrams/{id}/versions/{version}", api.GetVersion)
+	protected.HandleFunc("POST /api/diagrams/{id}/versions/{version}/restore", api.RestoreVersion)
+	protected.HandleFunc("DELETE /api/diagrams/{id}/versions/{version}", api.DeleteVersion)
 	mux.Handle("/api/diagrams", authMiddleware(protected))
 	mux.Handle("/api/diagrams/", authMiddleware(protected))
 

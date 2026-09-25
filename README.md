@@ -44,6 +44,15 @@
 - 缩放、平移、框选、MiniMap、网格吸附
 - 撤销 / 重做（最多 100 步）
 - 复制 / 删除 / 快捷键
+
+### 版本控制（版本历史）
+- **自动版本**：每次保存若图纸内容变化，自动记录一个版本（内容相同不重复记录）
+- **手动快照**：可随时创建带备注的里程碑版本
+- **版本列表**：按时间倒序展示版本号、来源（创建/自动/手动/恢复）、时间、节点/连线数
+- **载入预览**：把历史版本载入画布查看（不保存）
+- **一键恢复**：恢复到任一历史版本，并自动生成一条“恢复”记录
+- **删除版本**、每个图纸最多保留 100 个版本（自动清理最旧的）
+- 删除图纸时同步清理其全部版本
 - **JSON 导入 / 导出**（完整保留节点、连线、控制点、样式）
 - **PNG / SVG 导出**（高清 2 倍图）
 - 服务器端保存 / 打开 / 删除多份图纸（SQLite）
@@ -192,6 +201,11 @@ diagram/
 | `GET` | `/api/diagrams/{id}` | 获取图纸 * |
 | `PUT` | `/api/diagrams/{id}` | 保存图纸 * |
 | `DELETE` | `/api/diagrams/{id}` | 删除图纸 * |
+| `GET` | `/api/diagrams/{id}/versions` | 版本列表 * |
+| `POST` | `/api/diagrams/{id}/versions` | 创建手动快照 * |
+| `GET` | `/api/diagrams/{id}/versions/{version}` | 获取指定版本数据 * |
+| `POST` | `/api/diagrams/{id}/versions/{version}/restore` | 恢复到此版本 * |
+| `DELETE` | `/api/diagrams/{id}/versions/{version}` | 删除指定版本 * |
 
 > \* 设置 `DIAGRAM_TOKEN` 后需要 `Authorization: Bearer <token>`。
 
@@ -253,7 +267,7 @@ cd frontend && npm ci && npm run test
 ```
 
 覆盖内容：
-- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、限流与 CORS、更新工具函数
+- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、限流与 CORS、更新工具函数、**版本历史（自动/手动/恢复/删除/裁剪/去重）**
 - **前端**：形状与连线默认值、几何路径计算、文档序列化/反序列化、zustand 编辑器（增删改、撤销重做、多选对齐与分布）、模板完整性、组件渲染（Shape / ColorField / Toaster）
 
 ---

@@ -92,6 +92,13 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to create diagram")
 		return
 	}
+	// Initial revision.
+	_, _ = a.store.CreateVersion(DiagramVersion{
+		DiagramID: d.ID,
+		Label:     "创建",
+		Origin:    "create",
+		Data:      d.Data,
+	})
 	writeJSON(w, http.StatusCreated, d)
 }
 
@@ -129,6 +136,14 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to save diagram")
 		return
 	}
+	// Auto-snapshot only when the drawing data actually changed.
+	if a.store.ShouldVersion(existing.ID, existing.Data) {
+		_, _ = a.store.CreateVersion(DiagramVersion{
+			DiagramID: existing.ID,
+			Origin:    "auto",
+			Data:      existing.Data,
+		})
+	}
 	writeJSON(w, http.StatusOK, existing)
 }
 
@@ -145,6 +160,7 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "failed to delete diagram")
 		return
 	}
+	_ = a.store.DeleteVersionsForDiagram(id)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
 
