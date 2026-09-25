@@ -75,6 +75,17 @@ func NewStore(path string) (*Store, error) {
 			updated_at TEXT NOT NULL,
 			PRIMARY KEY (diagram_id, format)
 		);
+
+		CREATE TABLE IF NOT EXISTS components (
+			id         TEXT PRIMARY KEY,
+			name       TEXT NOT NULL,
+			category   TEXT NOT NULL DEFAULT '',
+			kind       TEXT NOT NULL DEFAULT 'single',
+			data       TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_components_category ON components(category, name);
 	`); err != nil {
 		return nil, err
 	}

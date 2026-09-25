@@ -40,6 +40,16 @@ export interface PublishState {
   dirty: boolean;
 }
 
+export interface ServerComponent {
+  id: string;
+  name: string;
+  category: string;
+  kind: string;
+  data: { nodes: unknown[]; edges: unknown[] };
+  createdAt: string;
+  updatedAt: string;
+}
+
 const base = "/api";
 
 /** Token is stored in localStorage and sent as a Bearer header when the
@@ -87,6 +97,17 @@ export const api = {
   update: (id: string, body: { name: string; description?: string; data: unknown }) =>
     req<DiagramRecord>(`/diagrams/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   remove: (id: string) => req<{ status: string }>(`/diagrams/${id}`, { method: "DELETE" }),
+
+  // ---- shared component library ----
+  listComponents: () => req<ServerComponent[]>("/components"),
+  upsertComponent: (c: { id: string; name: string; category: string; kind: string; data: unknown }) =>
+    req<ServerComponent>("/components", { method: "POST", body: JSON.stringify(c) }),
+  updateComponent: (
+    id: string,
+    c: { name: string; category: string; kind: string; data: unknown }
+  ) => req<ServerComponent>(`/components/${id}`, { method: "PUT", body: JSON.stringify(c) }),
+  deleteComponent: (id: string) =>
+    req<{ status: string }>(`/components/${id}`, { method: "DELETE" }),
 
   // ---- version history ----
   listVersions: (id: string) => req<DiagramVersion[]>(`/diagrams/${id}/versions`),

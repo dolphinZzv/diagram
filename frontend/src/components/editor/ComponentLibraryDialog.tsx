@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useReactFlow } from "@xyflow/react";
-import { Download, Package, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Download, Package, Pencil, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,8 @@ export function ComponentLibraryDialog() {
   const update = useComponents((s) => s.update);
   const remove = useComponents((s) => s.remove);
   const replaceAll = useComponents((s) => s.replaceAll);
+  const syncStatus = useComponents((s) => s.syncStatus);
+  const syncFromServer = useComponents((s) => s.syncFromServer);
   const insertFragment = useEditor((s) => s.insertFragment);
   const { screenToFlowPosition } = useReactFlow();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -129,6 +131,17 @@ export function ComponentLibraryDialog() {
             <Upload className="h-4 w-4" /> {t("comp.import")}
           </Button>
           <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            title={t("comp.cloud")}
+            disabled={syncStatus === "syncing"}
+            onClick={() => void syncFromServer()}
+          >
+            <RefreshCw className={syncStatus === "syncing" ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+            {t("comp.sync")}
+          </Button>
+          <Button
             size="sm"
             className="h-9"
             onClick={() => {
@@ -138,6 +151,15 @@ export function ComponentLibraryDialog() {
           >
             <Plus className="h-4 w-4" /> {t("comp.save")}
           </Button>
+        </div>
+
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span
+            className={`inline-block h-1.5 w-1.5 rounded-full ${
+              syncStatus === "error" ? "bg-amber-500" : syncStatus === "syncing" ? "bg-blue-500" : "bg-green-500"
+            }`}
+          />
+          {syncStatus === "syncing" ? t("comp.syncing") : syncStatus === "error" ? t("comp.syncError") : t("comp.cloud")}
         </div>
 
         <ScrollArea className="h-[46vh] pr-3">

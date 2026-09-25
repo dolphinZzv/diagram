@@ -185,8 +185,16 @@ func newRouter(store *Store) http.Handler {
 	protected.HandleFunc("GET /api/diagrams/{id}/publish", api.GetPublish)
 	protected.HandleFunc("POST /api/diagrams/{id}/publish", api.Publish)
 	protected.HandleFunc("DELETE /api/diagrams/{id}/publish", api.Unpublish)
+
+	// Shared component library.
+	protected.HandleFunc("GET /api/components", api.ListComponents)
+	protected.HandleFunc("POST /api/components", api.UpsertComponent)
+	protected.HandleFunc("PUT /api/components/{id}", api.UpdateComponent)
+	protected.HandleFunc("DELETE /api/components/{id}", api.DeleteComponent)
 	mux.Handle("/api/diagrams", authMiddleware(protected))
 	mux.Handle("/api/diagrams/", authMiddleware(protected))
+	mux.Handle("/api/components", authMiddleware(protected))
+	mux.Handle("/api/components/", authMiddleware(protected))
 
 	// Frontend (embedded at build time; falls back to disk during dev).
 	mux.Handle("/", spaHandler())

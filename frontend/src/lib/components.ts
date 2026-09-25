@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Edge, Node } from "@xyflow/react";
 import { uid } from "./id";
+import { api, type ServerComponent } from "./api";
 
 export const DEFAULT_CATEGORY = "未分类";
 
@@ -37,32 +38,78 @@ function persist(list: ComponentDef[]): void {
 
 interface ComponentState {
   components: ComponentDef[];
+  syncStatus: "idle" | "syncing" | "error";
   add: (c: ComponentDef) => void;
   update: (id: string, patch: Partial<ComponentDef>) => void;
   remove: (id: string) => void;
   replaceAll: (list: ComponentDef[]) => void;
+  syncFromServer: () => Promise<void>;
+}
+
+function toServer(c: ComponentDef) {
+  return {
+    id: c.id,
+    name: c.name,
+    category: c.category,
+    kind: c.kind,
+    data: { nodes: c.nodes, edges: c.edges },
+  };
+}
+
+function fromServer(r: ServerComponent): ComponentDef {
+  return {
+    id: r.id,
+    name: r.name,
+    category: r.category || DEFAULT_CATEGORY,
+    kind: r.kind === "compound" ? "compound" : "single",
+    nodes: (r.data?.nodes ?? []) as Node[],
+    edges: (r.data?.edges ?? []) as Edge[],
+    createdAt: Date.parse(r.createdAt) || Date.now(),
+  };
 }
 
 export const useComponents = create<ComponentState>((set, get) => ({
   components: load(),
+  syncStatus: "idle",
   add: (c) => {
     const list = [...get().components, c];
     persist(list);
     set({ components: list });
+    void api.upsertComponent(toServer(c)).catch(() => undefined);
   },
   update: (id, patch) => {
     const list = get().components.map((c) => (c.id === id ? { ...c, ...patch } : c));
     persist(list);
     set({ components: list });
+    const updated = list.find((c) => c.id === id);
+    if (updated) void api.updateComponent(id, toServer(updated)).catch(() => undefined);
   },
   remove: (id) => {
     const list = get().components.filter((c) => c.id !== id);
     persist(list);
     set({ components: list });
+    void api.deleteComponent(id).catch(() => undefined);
   },
   replaceAll: (list) => {
     persist(list);
     set({ components: list });
+  },
+  syncFromServer: async () => {
+    set({ syncStatus: "syncing" });
+    try {
+      const remote = await api.listComponents();
+      const remoteIds = new Set(remote.map((r) => r.id));
+      const localOnly = get().components.filter((c) => !remoteIds.has(c.id));
+      const list = [...remote.map(fromServer), ...localOnly];
+      persist(list);
+      set({ components: list, syncStatus: "idle" });
+      // Upload components that only exist locally.
+      await Promise.all(
+        localOnly.map((c) => api.upsertComponent(toServer(c)).catch(() => undefined))
+      );
+    } catch {
+      set({ syncStatus: "error" });
+    }
   },
 }));
 

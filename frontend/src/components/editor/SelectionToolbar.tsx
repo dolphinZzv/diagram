@@ -5,11 +5,7 @@ import {
   Copy,
   CopyPlus,
   Trash2,
-  ChevronsUp,
-  Lock as LockIcon,
-  LockOpen,
   Group as GroupIcon,
-  PackagePlus,
   MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -85,29 +81,18 @@ export function SelectionToolbar() {
   const s = useEditor.getState();
   const compact = isCompactLayout();
 
-  const node = target.kind === "node" ? nodes.find((n) => n.id === target.id) : undefined;
-  const locked = !!(node?.data as { locked?: boolean } | undefined)?.locked;
-
   const quick =
     target.kind === "node"
       ? [
           { title: t("ctx.edit"), icon: <Pencil className="h-4 w-4" />, onClick: () => { if (compact) useUi.getState().setInspectorOpen(true); } },
           { title: t("ctx.copy"), icon: <Copy className="h-4 w-4" />, onClick: () => s.copySelected() },
           { title: t("ctx.duplicate"), icon: <CopyPlus className="h-4 w-4" />, onClick: () => s.duplicateSelected() },
-          { title: t("ctx.front"), icon: <ChevronsUp className="h-4 w-4" />, onClick: () => s.bringToFront() },
-          {
-            title: locked ? t("ctx.unlock") : t("ctx.lock"),
-            icon: locked ? <LockOpen className="h-4 w-4" /> : <LockIcon className="h-4 w-4" />,
-            onClick: () => s.lockSelected(!locked),
-          },
-          { title: t("comp.save"), icon: <PackagePlus className="h-4 w-4" />, onClick: () => useUi.getState().setSaveComponentOpen(true) },
           { title: t("ctx.delete"), icon: <Trash2 className="h-4 w-4" />, onClick: () => s.removeSelected(), danger: true },
         ]
       : target.kind === "multi"
         ? [
             { title: t("ctx.group"), icon: <GroupIcon className="h-4 w-4" />, onClick: () => s.groupSelected() },
             { title: t("ctx.duplicate"), icon: <CopyPlus className="h-4 w-4" />, onClick: () => s.duplicateSelected() },
-            { title: t("comp.save"), icon: <PackagePlus className="h-4 w-4" />, onClick: () => useUi.getState().setSaveComponentOpen(true) },
             { title: t("ctx.delete"), icon: <Trash2 className="h-4 w-4" />, onClick: () => s.removeSelected(), danger: true },
           ]
         : [

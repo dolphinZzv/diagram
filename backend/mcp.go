@@ -283,6 +283,16 @@ func (s *mcpServer) callTool(name string, args map[string]any) (string, error) {
 		return s.toolShareGet(args)
 	case "share_disable":
 		return s.toolShareDisable(args)
+	case "component_list":
+		return s.toolComponentList()
+	case "component_get":
+		return s.toolComponentGet(args)
+	case "component_create":
+		return s.toolComponentCreate(args)
+	case "component_apply":
+		return s.toolComponentApply(args)
+	case "component_delete":
+		return s.toolComponentDelete(args)
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
@@ -445,10 +455,191 @@ func (s *mcpServer) toolDefs() []map[string]any {
 			"description": "Disable sharing for a diagram.",
 			"inputSchema": obj(map[string]any{"id": strProp("diagram id")}, "id"),
 		},
+		{
+			"name":        "component_list",
+			"description": "List reusable components in the shared library.",
+			"inputSchema": obj(map[string]any{}),
+		},
+		{
+			"name":        "component_get",
+			"description": "Get a component's nodes/edges by id.",
+			"inputSchema": obj(map[string]any{"id": strProp("component id")}, "id"),
+		},
+		{
+			"name":        "component_create",
+			"description": "Create (or update) a reusable component from nodes/edges.",
+			"inputSchema": obj(map[string]any{
+				"id":       strProp("optional component id"),
+				"name":     strProp("component name"),
+				"category": strProp("category"),
+				"kind":     strProp("single | compound"),
+				"nodes":    map[string]any{"type": "array", "items": map[string]any{"type": "object"}},
+				"edges":    map[string]any{"type": "array", "items": map[string]any{"type": "object"}},
+			}, "name", "nodes"),
+		},
+		{
+			"name":        "component_apply",
+			"description": "Insert a component's nodes/edges into a diagram at an optional offset.",
+			"inputSchema": obj(map[string]any{
+				"diagramId":   strProp("diagram id"),
+				"componentId": strProp("component id"),
+				"x":           numProp("x offset"),
+				"y":           numProp("y offset"),
+			}, "diagramId", "componentId"),
+		},
+		{
+			"name":        "component_delete",
+			"description": "Delete a component from the shared library.",
+			"inputSchema": obj(map[string]any{"id": strProp("component id")}, "id"),
+		},
 	}
 }
 
 // ---------------- tool implementations ----------------
+
+func (s *mcpServer) toolComponentList() (string, error) {
+	items, err := s.store.ListComponents()
+	if err != nil {
+		return "", err
+	}
+	for i := range items {
+		items[i].Data = nil // metadata only
+	}
+	return jsonText(items)
+}
+
+func (s *mcpServer) toolComponentGet(args map[string]any) (string, error) {
+	id, err := requiredString(args, "id")
+	if err != nil {
+		return "", err
+	}
+	c, err := s.store.GetComponent(id)
+	if err != nil {
+		return "", err
+	}
+	var doc DiagramDoc
+	_ = json.Unmarshal(c.Data, &doc)
+	return jsonText(map[string]any{
+		"id": c.ID, "name": c.Name, "category": c.Category, "kind": c.Kind,
+		"nodes": doc.Nodes, "edges": doc.Edges,
+	})
+}
+
+func (s *mcpServer) toolComponentCreate(args map[string]any) (string, error) {
+	name, err := requiredString(args, "name")
+	if err != nil {
+		return "", err
+	}
+	nodes, _ := args["nodes"].([]any)
+	edges, _ := args["edges"].([]any)
+	if len(nodes) == 0 {
+		return "", fmt.Errorf("nodes must not be empty")
+	}
+	data, _ := json.Marshal(map[string]any{"nodes": nodes, "edges": edges})
+	id, _ := optionalString(args, "id")
+	category, _ := optionalString(args, "category")
+	kind, _ := optionalString(args, "kind")
+	if kind == "" {
+		kind = "single"
+		if len(nodes) > 1 {
+			kind = "compound"
+		}
+	}
+	out, err := s.store.UpsertComponent(Component{
+		ID: id, Name: name, Category: category, Kind: kind, Data: data,
+	})
+	if err != nil {
+		return "", err
+	}
+	return jsonText(map[string]any{"id": out.ID, "name": out.Name, "category": out.Category, "kind": out.Kind})
+}
+
+func (s *mcpServer) toolComponentApply(args map[string]any) (string, error) {
+	diagramID, err := requiredString(args, "diagramId")
+	if err != nil {
+		return "", err
+	}
+	componentID, err := requiredString(args, "componentId")
+	if err != nil {
+		return "", err
+	}
+	comp, err := s.store.GetComponent(componentID)
+	if err != nil {
+		return "", err
+	}
+	var frag DiagramDoc
+	if err := json.Unmarshal(comp.Data, &frag); err != nil {
+		return "", fmt.Errorf("invalid component data: %w", err)
+	}
+	doc, _, err := s.loadDoc(diagramID)
+	if err != nil {
+		return "", err
+	}
+	dx := numberArg(args, "x", 0)
+	dy := numberArg(args, "y", 0)
+
+	idMap := map[string]string{}
+	for _, n := range frag.Nodes {
+		idMap[asString(n["id"])] = "n_" + newID()
+	}
+	for _, n := range frag.Nodes {
+		nn := map[string]any{}
+		for k, v := range n {
+			nn[k] = v
+		}
+		nn["id"] = idMap[asString(n["id"])]
+		if parent, ok := n["parentId"].(string); ok {
+			if mapped, ok := idMap[parent]; ok {
+				nn["parentId"] = mapped
+			}
+		}
+		pos, _ := n["position"].(map[string]any)
+		nn["position"] = map[string]any{
+			"x": toFloat(pos["x"]) + dx,
+			"y": toFloat(pos["y"]) + dy,
+		}
+		doc.Nodes = append(doc.Nodes, nn)
+	}
+	for _, e := range frag.Edges {
+		ee := map[string]any{}
+		for k, v := range e {
+			ee[k] = v
+		}
+		ee["id"] = "e_" + newID()
+		ee["source"] = idMap[asString(e["source"])]
+		ee["target"] = idMap[asString(e["target"])]
+		doc.Edges = append(doc.Edges, ee)
+	}
+	saved, err := s.saveDoc(diagramID, doc, "mcp")
+	if err != nil {
+		return "", err
+	}
+	return saved, nil
+}
+
+func (s *mcpServer) toolComponentDelete(args map[string]any) (string, error) {
+	id, err := requiredString(args, "id")
+	if err != nil {
+		return "", err
+	}
+	if err := s.store.DeleteComponent(id); err != nil {
+		return "", err
+	}
+	return jsonText(map[string]any{"status": "deleted", "id": id})
+}
+
+func toFloat(v any) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case int:
+		return float64(n)
+	case json.Number:
+		f, _ := n.Float64()
+		return f
+	}
+	return 0
+}
 
 func (s *mcpServer) toolDiagramList() (string, error) {
 	items, err := s.store.List()

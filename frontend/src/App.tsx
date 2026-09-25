@@ -14,14 +14,14 @@ import { ImportTextDialog } from "@/components/editor/ImportTextDialog";
 import { TemplateGallery } from "@/components/editor/TemplateGallery";
 import { SaveComponentDialog } from "@/components/editor/SaveComponentDialog";
 import { ComponentLibraryDialog } from "@/components/editor/ComponentLibraryDialog";
-import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
-import { SelectionActionsBar } from "@/components/editor/SelectionActionsBar";
+import { SelectionToolbar } from "@/components/editor/SelectionToolbar";import { SelectionActionsBar } from "@/components/editor/SelectionActionsBar";
 import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui";
 import { useDraftPersistence } from "@/hooks/useDraft";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useShareSync } from "@/hooks/useShareSync";
 import { useClipboardPaste } from "@/hooks/useClipboardPaste";
+import { useComponentSync } from "@/hooks/useComponentSync";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/Toaster";
 
@@ -31,6 +31,7 @@ function EditorApp() {
   useAutoSave();
   useShareSync();
   useClipboardPaste();
+  useComponentSync();
   const sketch = useUi((s) => s.sketch);
   const paletteOpen = useUi((s) => s.paletteOpen);
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
