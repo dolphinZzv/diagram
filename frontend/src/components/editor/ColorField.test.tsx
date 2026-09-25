@@ -13,7 +13,8 @@ describe("ColorField", () => {
   it("calls onChange while typing a hex value", () => {
     const onChange = vi.fn();
     render(<ColorField value="#000000" onChange={onChange} />);
-    const input = screen.getByDisplayValue("#000000");
+    // The native color input also carries a value, so target by test id.
+    const input = screen.getByTestId("color-hex");
     fireEvent.change(input, { target: { value: "#123456" } });
     expect(onChange).toHaveBeenCalledWith("#123456");
   });

@@ -51,6 +51,7 @@ export function ColorField({ value, onChange, allowTransparent = true }: ColorFi
           onChange={(e) => onChange(e.target.value)}
           className="h-9 font-mono text-xs"
           spellCheck={false}
+          data-testid="color-hex"
         />
       </div>
       <div className="flex flex-wrap gap-1.5">
