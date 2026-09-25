@@ -59,6 +59,12 @@
 - **一键恢复**：恢复到任一历史版本，并自动生成一条“恢复”记录
 - **删除版本**、每个图纸最多保留 100 个版本（自动清理最旧的）
 - 删除图纸时同步清理其全部版本
+
+### 分享（只读）
+- 一键生成**只读分享链接**，别人打开即可查看（可缩放/平移/导出 PNG），无法编辑
+- 可**重新生成链接**（旧链接立即失效）或**关闭分享**
+- 分享接口独立于编辑接口，**无需登录/鉴权**即可访问
+- 支持 `?share=<token>` 直接打开只读画布
 - **JSON 导入 / 导出**（完整保留节点、连线、控制点、样式）
 - **PNG / SVG 导出**（高清 2 倍图）
 - 服务器端保存 / 打开 / 删除多份图纸（SQLite）
@@ -212,6 +218,10 @@ diagram/
 | `GET` | `/api/diagrams/{id}/versions/{version}` | 获取指定版本数据 * |
 | `POST` | `/api/diagrams/{id}/versions/{version}/restore` | 恢复到此版本 * |
 | `DELETE` | `/api/diagrams/{id}/versions/{version}` | 删除指定版本 * |
+| `GET` | `/api/diagrams/{id}/share` | 获取分享状态 * |
+| `POST` | `/api/diagrams/{id}/share` | 开启 / 重置分享链接 * |
+| `DELETE` | `/api/diagrams/{id}/share` | 关闭分享 * |
+| `GET` | `/api/share/{token}` | 公开只读获取图纸（无需鉴权） |
 
 > \* 设置 `DIAGRAM_TOKEN` 后需要 `Authorization: Bearer <token>`。
 
@@ -273,8 +283,8 @@ cd frontend && npm ci && npm run test
 ```
 
 覆盖内容：
-- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、限流与 CORS、更新工具函数、**版本历史（自动/手动/恢复/删除/裁剪/去重）**
-- **前端**：形状与连线默认值、几何路径计算、文档序列化/反序列化、zustand 编辑器（增删改、撤销重做、多选对齐与分布）、模板完整性、组件渲染（Shape / ColorField / Toaster）
+- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、限流与 CORS、更新工具函数、**版本历史（自动/手动/恢复/删除/裁剪/去重）**、**只读分享（开启/关闭/轮换令牌/公开只读/鉴权边界）**、**旧库迁移**
+- **前端**：形状与连线默认值、几何路径计算、文档序列化/反序列化、zustand 编辑器（增删改、撤销重做、多选对齐与分布）、模板完整性、组件渲染（Shape / ColorField / Toaster）、**跨环境 ID 生成（非安全上下文回退）**
 
 ---
 

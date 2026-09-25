@@ -45,6 +45,7 @@ func NewStore(path string) (*Store, error) {
 			name        TEXT NOT NULL,
 			description TEXT NOT NULL DEFAULT '',
 			data        TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
+			share_token TEXT NOT NULL DEFAULT '',
 			created_at  TEXT NOT NULL,
 			updated_at  TEXT NOT NULL
 		);
@@ -67,7 +68,46 @@ func NewStore(path string) (*Store, error) {
 	`); err != nil {
 		return nil, err
 	}
+	// Migrate databases created before share support was added.
+	if err := ensureColumn(db, "diagrams", "share_token", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return nil, err
+	}
+	// The share index must be created *after* the column exists.
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_diagrams_share ON diagrams(share_token);`); err != nil {
+		return nil, err
+	}
 	return &Store{db: db}, nil
+}
+
+// ensureColumn adds a column when it does not already exist (SQLite has no
+// "ADD COLUMN IF NOT EXISTS").
+func ensureColumn(db *sql.DB, table, column, ddl string) error {
+	rows, err := db.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			cid     int
+			name    string
+			ctype   string
+			notnull int
+			dflt    sql.NullString
+			pk      int
+		)
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+			return err
+		}
+		if name == column {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	_, err = db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + column + ` ` + ddl)
+	return err
 }
 
 func (s *Store) Close() error { return s.db.Close() }

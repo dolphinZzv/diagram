@@ -14,6 +14,7 @@ import {
   FileImage,
   LayoutTemplate,
   History,
+  Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import { toast } from "@/lib/toast";
 import { api } from "@/lib/api";
 import { OpenDialog } from "./OpenDialog";
 import { VersionHistory } from "./VersionHistory";
+import { ShareDialog } from "./ShareDialog";
 import { AboutMenu } from "./AboutMenu";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { cn } from "@/lib/utils";
@@ -55,6 +57,7 @@ export function TopBar() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [openOpen, setOpenOpen] = useState(false);
   const [openHistory, setOpenHistory] = useState(false);
+  const [openShare, setOpenShare] = useState(false);
 
   const buildDoc = useCallback(
     () => serializeDoc(nodes, edges, meta.name, meta.description, getViewport()),
@@ -230,6 +233,15 @@ export function TopBar() {
         <Button variant="ghost" size="sm" className="h-8" onClick={() => onSave(false)}>
           <Save className="h-4 w-4" /> <span className="hidden md:inline">保存</span>
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8"
+          onClick={() => setOpenShare(true)}
+          title="分享（只读）"
+        >
+          <Share2 className="h-4 w-4" /> <span className="hidden md:inline">分享</span>
+        </Button>
 
         <Button variant="ghost" size="sm" className="h-8" onClick={() => fileInput.current?.click()}>
           <Upload className="h-4 w-4" /> <span className="hidden md:inline">导入</span>
@@ -292,6 +304,7 @@ export function TopBar() {
 
       <OpenDialog open={openOpen} onOpenChange={setOpenOpen} />
       <VersionHistory open={openHistory} onOpenChange={setOpenHistory} />
+      <ShareDialog open={openShare} onOpenChange={setOpenShare} />
     </header>
   );
 }

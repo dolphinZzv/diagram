@@ -10,6 +10,7 @@ import {
   addEdge,
 } from "@xyflow/react";
 import { defaultEdgeData, defaultNodeData, type ShapeNodeData, type EdgeData } from "./types";
+import { uid } from "./id";
 
 export interface DiagramMeta {
   id: string | null;
@@ -118,7 +119,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     pushHistory();
     const edge: Edge = {
       ...connection,
-      id: `e_${crypto.randomUUID().slice(0, 8)}`,
+      id: uid("e_"),
       type: "custom",
       data: defaultEdgeData(),
     };
@@ -181,7 +182,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     const { addNode } = get();
     const data = defaultNodeData(shape);
     addNode({
-      id: `n_${crypto.randomUUID().slice(0, 8)}`,
+      id: uid("n_"),
       type: "shape",
       position,
       data,
@@ -212,7 +213,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 
     const idMap = new Map<string, string>();
     const clones: Node[] = selectedNodes.map((src) => {
-      const id = `n_${crypto.randomUUID().slice(0, 8)}`;
+      const id = uid("n_");
       idMap.set(src.id, id);
       return {
         ...src,
@@ -228,7 +229,7 @@ export const useEditor = create<EditorState>((set, get) => ({
       .filter((e) => idMap.has(e.source) && idMap.has(e.target))
       .map((e) => ({
         ...e,
-        id: `e_${crypto.randomUUID().slice(0, 8)}`,
+        id: uid("e_"),
         source: idMap.get(e.source)!,
         target: idMap.get(e.target)!,
         selected: false,

@@ -5,6 +5,7 @@ import { Shape } from "./Shape";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/lib/store";
 import { defaultNodeData, SHAPE_LIST, SHAPE_LABELS, type ShapeType } from "@/lib/types";
+import { uid } from "@/lib/id";
 
 interface Preset {
   key: string;
@@ -104,7 +105,7 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
     const pos = center();
     const off = nextOffset();
     addNode({
-      id: `n_${crypto.randomUUID().slice(0, 8)}`,
+      id: uid("n_"),
       type: "shape",
       position: { x: pos.x - data.width / 2 + off, y: pos.y - data.height / 2 + off },
       data,

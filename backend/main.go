@@ -150,6 +150,8 @@ func newRouter(store *Store) http.Handler {
 	mux.HandleFunc("GET /api/update-check", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, checkUpdate())
 	})
+	// Public read-only share endpoint.
+	mux.HandleFunc("GET /api/share/{token}", api.PublicShare)
 
 	// Protected endpoints: diagram CRUD.
 	protected := http.NewServeMux()
@@ -165,6 +167,11 @@ func newRouter(store *Store) http.Handler {
 	protected.HandleFunc("GET /api/diagrams/{id}/versions/{version}", api.GetVersion)
 	protected.HandleFunc("POST /api/diagrams/{id}/versions/{version}/restore", api.RestoreVersion)
 	protected.HandleFunc("DELETE /api/diagrams/{id}/versions/{version}", api.DeleteVersion)
+
+	// Sharing (read-only public links).
+	protected.HandleFunc("GET /api/diagrams/{id}/share", api.GetShare)
+	protected.HandleFunc("POST /api/diagrams/{id}/share", api.EnableShare)
+	protected.HandleFunc("DELETE /api/diagrams/{id}/share", api.DisableShare)
 	mux.Handle("/api/diagrams", authMiddleware(protected))
 	mux.Handle("/api/diagrams/", authMiddleware(protected))
 

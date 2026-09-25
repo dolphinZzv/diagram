@@ -13,14 +13,11 @@ import {
   type OnSelectionChangeParams,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ShapeNode } from "./ShapeNode";
-import { CustomEdge } from "./CustomEdge";
+import { nodeTypes, edgeTypes } from "./flow-types";
 import { useEditor } from "@/lib/store";
 import { ARCH_PRESETS, PRESET_SHAPES } from "./ShapePalette";
 import { defaultNodeData, type ShapeType } from "@/lib/types";
-
-const nodeTypes = { shape: ShapeNode };
-const edgeTypes = { custom: CustomEdge };
+import { uid } from "@/lib/id";
 
 export function Canvas() {
   const nodes = useEditor((s) => s.nodes);
@@ -64,7 +61,7 @@ export function Canvas() {
           textColor: preset.textColor,
         };
         const node: Node = {
-          id: `n_${crypto.randomUUID().slice(0, 8)}`,
+          id: uid("n_"),
           type: "shape",
           position: { x: position.x - data.width / 2, y: position.y - data.height / 2 },
           data,

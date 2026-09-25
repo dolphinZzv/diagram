@@ -22,6 +22,18 @@ export interface DiagramVersion {
   data?: { nodes: unknown[]; edges: unknown[]; viewport?: { x: number; y: number; zoom: number } };
 }
 
+export interface SharedDiagram {
+  name: string;
+  description: string;
+  data: { nodes: unknown[]; edges: unknown[]; viewport?: { x: number; y: number; zoom: number } };
+  updatedAt: string;
+}
+
+export interface ShareState {
+  enabled: boolean;
+  token: string;
+}
+
 const base = "/api";
 
 /** Token is stored in localStorage and sent as a Bearer header when the
@@ -86,4 +98,10 @@ export const api = {
     ),
   removeVersion: (id: string, version: number) =>
     req<{ status: string }>(`/diagrams/${id}/versions/${version}`, { method: "DELETE" }),
+
+  // ---- sharing (read-only public link) ----
+  getShare: (id: string) => req<ShareState>(`/diagrams/${id}/share`),
+  enableShare: (id: string) => req<ShareState>(`/diagrams/${id}/share`, { method: "POST" }),
+  disableShare: (id: string) => req<ShareState>(`/diagrams/${id}/share`, { method: "DELETE" }),
+  getShared: (token: string) => req<SharedDiagram>(`/share/${token}`),
 };

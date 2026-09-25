@@ -1,5 +1,6 @@
 import type { Edge, Node } from "@xyflow/react";
 import { defaultEdgeData, defaultNodeData, type ShapeNodeData } from "./types";
+import { uid } from "./id";
 
 export interface DiagramFile {
   version: number;
@@ -28,7 +29,7 @@ export function normalizeNodes(raw: unknown[]): Node[] {
     const data = { ...defaultNodeData(shape), ...(node.data ?? {}) };
     return {
       ...node,
-      id: node.id ?? `n_${crypto.randomUUID().slice(0, 8)}`,
+      id: node.id ?? uid("n_"),
       type: "shape",
       position: node.position ?? { x: 0, y: 0 },
       data,
@@ -42,7 +43,7 @@ export function normalizeEdges(raw: unknown[]): Edge[] {
     const edge = e as Partial<Edge>;
     return {
       ...edge,
-      id: edge.id ?? `e_${crypto.randomUUID().slice(0, 8)}`,
+      id: edge.id ?? uid("e_"),
       type: "custom",
       data: { ...defaultEdgeData(), ...(edge.data ?? {}) },
     } as Edge;
