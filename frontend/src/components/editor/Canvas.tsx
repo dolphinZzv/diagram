@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -14,18 +14,58 @@ import {
   type OnSelectionChangeParams,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import {
+  Pencil,
+  Copy,
+  CopyPlus,
+  Trash2,
+  ChevronsUp,
+  ChevronsDown,
+  Group as GroupIcon,
+  Ungroup as UngroupIcon,
+  Lock as LockIcon,
+  LockOpen,
+  ClipboardPaste,
+  Maximize2,
+  ZoomIn,
+  MousePointer2,
+} from "lucide-react";
 import { nodeTypes, edgeTypes } from "./flow-types";
 import { useEditor } from "@/lib/store";
-import { ARCH_PRESETS, PRESET_SHAPES } from "./ShapePalette";
+import { ARCH_PRESETS, PRESET_SHAPES, buildIconNode } from "./ShapePalette";
+import { ICON_PRESETS } from "./icons";
 import { defaultNodeData, type ShapeType } from "@/lib/types";
 import { uid } from "@/lib/id";
 import { useTheme, canvasColors } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 import { isCompactLayout, useUi } from "@/lib/ui";
+import { ContextMenu, type CtxItem } from "./ContextMenu";
+import { HelperLines } from "./HelperLines";
+import { EmptyState } from "./EmptyState";
+
+function nodeSize(n: Node): { w: number; h: number } {
+  const d = n.data as { width?: number; height?: number };
+  const w =
+    (typeof n.measured?.width === "number" && n.measured.width) ||
+    (typeof n.width === "number" && n.width) ||
+    (typeof n.style?.width === "number" && n.style.width) ||
+    d?.width ||
+    120;
+  const h =
+    (typeof n.measured?.height === "number" && n.measured.height) ||
+    (typeof n.height === "number" && n.height) ||
+    (typeof n.style?.height === "number" && n.style.height) ||
+    d?.height ||
+    60;
+  return { w, h };
+}
+
+type MenuState = { x: number; y: number; kind: "node" | "edge" | "pane"; id?: string } | null;
 
 export function Canvas() {
   const nodes = useEditor((s) => s.nodes);
   const edges = useEditor((s) => s.edges);
+  const selectedIds = useEditor((s) => s.selectedIds);
   const onNodesChange = useEditor((s) => s.onNodesChange);
   const onEdgesChange = useEditor((s) => s.onEdgesChange);
   const onConnect = useEditor((s) => s.onConnect);
@@ -38,8 +78,27 @@ export function Canvas() {
   const selectMode = useUi((s) => s.selectMode);
   const compact = isCompactLayout();
 
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getZoom, fitView, zoomTo } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const [menu, setMenu] = useState<MenuState>(null);
+  const [guides, setGuides] = useState<{ vertical?: number; horizontal?: number }>({});
+
+  const bounds = useMemo(() => {
+    if (nodes.length === 0) return { minX: 0, minY: 0, width: 0, height: 0 };
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const n of nodes) {
+      const s = nodeSize(n);
+      minX = Math.min(minX, n.position.x);
+      minY = Math.min(minY, n.position.y);
+      maxX = Math.max(maxX, n.position.x + s.w);
+      maxY = Math.max(maxY, n.position.y + s.h);
+    }
+    return { minX, minY, width: maxX - minX, height: maxY - minY };
+  }, [nodes]);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
@@ -55,7 +114,7 @@ export function Canvas() {
       const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
       if (kind === "shape") {
-        addShapeNode(value as ShapeType, { x: position.x - 80, y: position.y - 40 });
+        addShapeNode(value as ShapeType, { x: position.x - 60, y: position.y - 30 });
         return;
       }
       if (kind === "preset") {
@@ -78,6 +137,12 @@ export function Canvas() {
           selected: true,
         };
         addNode(node);
+        return;
+      }
+      if (kind === "icon") {
+        const preset = ICON_PRESETS.find((p) => p.icon === value);
+        const node = buildIconNode(value, preset ? t(preset.labelKey) : value, position);
+        if (node) addNode(node);
       }
     },
     [addNode, addShapeNode, screenToFlowPosition, t]
@@ -90,15 +155,13 @@ export function Canvas() {
     [setSelection]
   );
 
-  // On compact (touch) layouts, a double-tap on a node/edge opens the
-  // properties drawer. React Flow's dblclick is unreliable on touch, so we
-  // also detect two quick taps ourselves.
+  // Double-tap on compact layouts opens the properties drawer.
   const openInspector = useCallback(
     (id: string) => {
       setSelection([id]);
-      if (isCompactLayout()) useUi.getState().setInspectorOpen(true);
+      if (compact) useUi.getState().setInspectorOpen(true);
     },
-    [setSelection]
+    [setSelection, compact]
   );
 
   const lastTap = useRef<{ id: string; t: number } | null>(null);
@@ -116,6 +179,145 @@ export function Canvas() {
     [openInspector]
   );
 
+  // ---- smart alignment guides + snapping ----
+  const onNodeDragStart = useCallback(() => setGuides({}), []);
+
+  const onNodeDrag = useCallback(
+    (_event: unknown, node: Node) => {
+      if (node.parentId) {
+        setGuides({});
+        return;
+      }
+      const threshold = 8 / Math.max(getZoom(), 0.1);
+      const size = nodeSize(node);
+      const xs = [node.position.x, node.position.x + size.w / 2, node.position.x + size.w];
+      const ys = [node.position.y, node.position.y + size.h / 2, node.position.y + size.h];
+
+      let bestX: { delta: number; line: number } | null = null;
+      let bestY: { delta: number; line: number } | null = null;
+
+      for (const other of useEditor.getState().nodes) {
+        if (other.id === node.id || other.parentId) continue;
+        const os = nodeSize(other);
+        const ox = [other.position.x, other.position.x + os.w / 2, other.position.x + os.w];
+        const oy = [other.position.y, other.position.y + os.h / 2, other.position.y + os.h];
+        for (const a of xs) {
+          for (const b of ox) {
+            const d = b - a;
+            if (Math.abs(d) <= threshold && (!bestX || Math.abs(d) < Math.abs(bestX.delta))) {
+              bestX = { delta: d, line: b };
+            }
+          }
+        }
+        for (const a of ys) {
+          for (const b of oy) {
+            const d = b - a;
+            if (Math.abs(d) <= threshold && (!bestY || Math.abs(d) < Math.abs(bestY.delta))) {
+              bestY = { delta: d, line: b };
+            }
+          }
+        }
+      }
+
+      if (bestX || bestY) {
+        const store = useEditor.getState();
+        store.setNodes(
+          store.nodes.map((n) =>
+            n.id === node.id
+              ? {
+                  ...n,
+                  position: {
+                    x: n.position.x + (bestX?.delta ?? 0),
+                    y: n.position.y + (bestY?.delta ?? 0),
+                  },
+                }
+              : n
+          )
+        );
+      }
+      setGuides({ vertical: bestX?.line, horizontal: bestY?.line });
+    },
+    [getZoom]
+  );
+
+  const onNodeDragStop = useCallback(() => setGuides({}), []);
+
+  // ---- context menu ----
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      if (!selectedIds.includes(node.id)) setSelection([node.id]);
+      setMenu({ x: event.clientX, y: event.clientY, kind: "node", id: node.id });
+    },
+    [selectedIds, setSelection]
+  );
+
+  const onEdgeContextMenu = useCallback(
+    (event: React.MouseEvent, edge: { id: string }) => {
+      event.preventDefault();
+      if (!selectedIds.includes(edge.id)) setSelection([edge.id]);
+      setMenu({ x: event.clientX, y: event.clientY, kind: "edge", id: edge.id });
+    },
+    [selectedIds, setSelection]
+  );
+
+  const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent) => {
+    event.preventDefault();
+    setMenu({ x: event.clientX, y: event.clientY, kind: "pane" });
+  }, []);
+
+  const menuItems = useMemo<(CtxItem | "separator")[]>(() => {
+    if (!menu) return [];
+    const s = useEditor.getState();
+    const id = menu.id;
+    const selection = id && s.selectedIds.includes(id) ? s.selectedIds : id ? [id] : [];
+    const select = () => {
+      if (id) s.setSelection([id]);
+    };
+
+    if (menu.kind === "node" && id) {
+      const node = s.nodes.find((n) => n.id === id);
+      const locked = !!(node?.data as { locked?: boolean } | undefined)?.locked;
+      const idSet = new Set(selection);
+      const hasGroup = s.nodes.some((n) => idSet.has(n.id) && n.type === "group");
+      return [
+        { label: t("ctx.edit"), icon: <Pencil className="h-4 w-4" />, onClick: () => openInspector(id) },
+        "separator",
+        { label: t("ctx.copy"), icon: <Copy className="h-4 w-4" />, shortcut: "Ctrl C", onClick: () => { select(); s.copySelected(); } },
+        { label: t("ctx.duplicate"), icon: <CopyPlus className="h-4 w-4" />, shortcut: "Ctrl D", onClick: () => { select(); s.duplicateSelected(); } },
+        { label: t("ctx.delete"), icon: <Trash2 className="h-4 w-4" />, danger: true, shortcut: "Del", onClick: () => { select(); s.removeSelected(); } },
+        "separator",
+        { label: t("ctx.front"), icon: <ChevronsUp className="h-4 w-4" />, onClick: () => { select(); s.bringToFront(); } },
+        { label: t("ctx.back"), icon: <ChevronsDown className="h-4 w-4" />, onClick: () => { select(); s.sendToBack(); } },
+        "separator",
+        { label: t("ctx.group"), icon: <GroupIcon className="h-4 w-4" />, shortcut: "Ctrl G", onClick: () => { s.groupSelected(); } },
+        { label: t("ctx.ungroup"), icon: <UngroupIcon className="h-4 w-4" />, disabled: !hasGroup, onClick: () => s.ungroupSelected() },
+        "separator",
+        locked
+          ? { label: t("ctx.unlock"), icon: <LockOpen className="h-4 w-4" />, onClick: () => { select(); s.lockSelected(false); } }
+          : { label: t("ctx.lock"), icon: <LockIcon className="h-4 w-4" />, onClick: () => { select(); s.lockSelected(true); } },
+      ];
+    }
+
+    if (menu.kind === "edge" && id) {
+      return [
+        { label: t("ctx.edit"), icon: <Pencil className="h-4 w-4" />, onClick: () => openInspector(id) },
+        "separator",
+        { label: t("ctx.delete"), icon: <Trash2 className="h-4 w-4" />, danger: true, shortcut: "Del", onClick: () => { select(); s.removeSelected(); } },
+      ];
+    }
+
+    return [
+      { label: t("ctx.paste"), icon: <ClipboardPaste className="h-4 w-4" />, shortcut: "Ctrl V", disabled: !s.clipboard, onClick: () => s.paste() },
+      { label: t("ctx.selectAll"), icon: <MousePointer2 className="h-4 w-4" />, shortcut: "Ctrl A", onClick: () => s.selectAll() },
+      "separator",
+      { label: t("ctx.fitView"), icon: <Maximize2 className="h-4 w-4" />, onClick: () => fitView({ padding: 0.25 }) },
+      { label: t("ctx.zoomReset"), icon: <ZoomIn className="h-4 w-4" />, onClick: () => zoomTo(1) },
+    ];
+  }, [menu, t, openInspector, fitView, zoomTo]);
+
+  const showEmpty = nodes.length === 0 && edges.length === 0;
+
   return (
     <div ref={wrapperRef} className="h-full w-full" onDrop={onDrop} onDragOver={onDragOver}>
       <ReactFlow
@@ -129,6 +331,12 @@ export function Canvas() {
         onEdgeClick={(_, e) => handleTap(e.id)}
         onNodeDoubleClick={(_, n) => openInspector(n.id)}
         onEdgeDoubleClick={(_, e) => openInspector(e.id)}
+        onNodeContextMenu={onNodeContextMenu}
+        onEdgeContextMenu={onEdgeContextMenu}
+        onPaneContextMenu={onPaneContextMenu}
+        onNodeDragStart={onNodeDragStart}
+        onNodeDrag={onNodeDrag}
+        onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
@@ -160,7 +368,19 @@ export function Canvas() {
           maskColor={colors.minimapMask}
           nodeColor={(n) => (n.data?.fill as string) || "#e2e8f0"}
         />
+        <HelperLines
+          vertical={guides.vertical}
+          horizontal={guides.horizontal}
+          minX={bounds.minX}
+          minY={bounds.minY}
+          width={bounds.width}
+          height={bounds.height}
+        />
       </ReactFlow>
+
+      {showEmpty ? <EmptyState /> : null}
+
+      {menu ? <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} /> : null}
     </div>
   );
 }

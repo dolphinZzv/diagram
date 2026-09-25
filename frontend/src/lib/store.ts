@@ -11,6 +11,7 @@ import {
 } from "@xyflow/react";
 import { defaultEdgeData, defaultNodeData, type ShapeNodeData, type EdgeData } from "./types";
 import { uid } from "./id";
+import { defaultShapeLabel } from "./i18n";
 
 export interface DiagramMeta {
   id: string | null;
@@ -199,6 +200,8 @@ export const useEditor = create<EditorState>((set, get) => ({
   addShapeNode: (shape, position) => {
     const { addNode } = get();
     const data = defaultNodeData(shape);
+    // Give new shapes a default, editable label (the localized shape name).
+    data.label = defaultShapeLabel(shape);
     addNode({
       id: uid("n_"),
       type: "shape",

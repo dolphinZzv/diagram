@@ -33,6 +33,8 @@ export interface ShapeNodeData extends Record<string, unknown> {
   fontStyle: string;
   /** when true the node cannot be moved, resized or connected */
   locked: boolean;
+  /** optional lucide icon name rendered inside the node */
+  icon?: string;
 }
 
 export interface EdgeData extends Record<string, unknown> {

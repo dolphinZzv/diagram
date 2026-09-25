@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorField } from "./ColorField";
+import { ICON_KEYS } from "./icons";
 import { useEditor, type AlignMode } from "@/lib/store";
 import { SHAPE_LIST, type EdgeData, type ShapeNodeData } from "@/lib/types";
 import { useT } from "@/lib/i18n";
@@ -200,6 +201,27 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
               {SHAPE_LIST.map((s) => (
                 <SelectItem key={s} value={s} className="text-xs">
                   {t(`shape.${s}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Row>
+
+        <Row label={t("inspector.icon")}>
+          <Select
+            value={data.icon || "__none__"}
+            onValueChange={(v) => update(id, { icon: v === "__none__" ? "" : v })}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              <SelectItem value="__none__" className="text-xs">
+                {t("inspector.iconNone")}
+              </SelectItem>
+              {ICON_KEYS.map((k) => (
+                <SelectItem key={k} value={k} className="text-xs">
+                  {k}
                 </SelectItem>
               ))}
             </SelectContent>

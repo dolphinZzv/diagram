@@ -3,6 +3,7 @@ import { Github, Info, KeyRound, Languages, Moon, RefreshCw, Settings, Sun, Keyb
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,7 @@ import { useTheme } from "@/lib/theme";
 import { useUi } from "@/lib/ui";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { isAutoSaveEnabled, setAutoSaveEnabled } from "@/hooks/useAutoSave";
 
 interface VersionInfo {
   version: string;
@@ -35,6 +37,7 @@ export function AboutMenu() {
   const [info, setInfo] = useState<VersionInfo | null>(null);
   const [checking, setChecking] = useState(false);
   const [token, setTokenState] = useState(getToken());
+  const [autoSave, setAutoSave] = useState(isAutoSaveEnabled());
 
   useEffect(() => {
     fetch("/api/version")
@@ -166,6 +169,22 @@ export function AboutMenu() {
               {t("about.save")}
             </Button>
           </div>
+        </div>
+
+        <DropdownMenuSeparator />
+
+        <div
+          className="flex items-center justify-between px-2 py-2"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Label className="text-xs text-muted-foreground">{t("about.autoSave")}</Label>
+          <Switch
+            checked={autoSave}
+            onCheckedChange={(v) => {
+              setAutoSave(v);
+              setAutoSaveEnabled(v);
+            }}
+          />
         </div>
 
         <DropdownMenuSeparator />

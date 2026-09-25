@@ -1,12 +1,13 @@
 import { useRef } from "react";
-import { useReactFlow } from "@xyflow/react";
+import { useReactFlow, type Node } from "@xyflow/react";
 import { MousePointerClick } from "lucide-react";
 import { Shape } from "./Shape";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/lib/store";
-import { defaultNodeData, SHAPE_LIST, type ShapeType } from "@/lib/types";
+import { defaultNodeData, SHAPE_LIST, type ShapeNodeData, type ShapeType } from "@/lib/types";
 import { uid } from "@/lib/id";
 import { useT } from "@/lib/i18n";
+import { ICON_MAP, ICON_PRESETS, TONES } from "./icons";
 
 interface Preset {
   key: string;
@@ -53,6 +54,34 @@ function ShapeThumb({ shape }: { shape: ShapeType }) {
   );
 }
 
+export function buildIconNode(
+  iconKey: string,
+  label: string,
+  position: { x: number; y: number }
+): Node | null {
+  const preset = ICON_PRESETS.find((p) => p.icon === iconKey);
+  if (!preset || !ICON_MAP[iconKey]) return null;
+  const tone = TONES[preset.tone] ?? TONES.slate;
+  const data: ShapeNodeData = {
+    ...defaultNodeData("rounded"),
+    label,
+    fill: tone.fill,
+    stroke: tone.stroke,
+    textColor: tone.textColor,
+    icon: iconKey,
+    width: 110,
+    height: 84,
+  };
+  return {
+    id: uid("n_"),
+    type: "shape",
+    position: { x: position.x - data.width / 2, y: position.y - data.height / 2 },
+    data,
+    style: { width: data.width, height: data.height },
+    selected: true,
+  };
+}
+
 /** Returns flow coordinates for the centre of the visible canvas. */
 function useViewportCenter() {
   const { screenToFlowPosition } = useReactFlow();
@@ -78,10 +107,20 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
     return n * 24;
   };
 
-  const onDragStart = (e: React.DragEvent, kind: "shape" | "preset", value: string) => {
+  const onDragStart = (e: React.DragEvent, kind: "shape" | "preset" | "icon", value: string) => {
     e.dataTransfer.setData("application/diagram-kind", kind);
     e.dataTransfer.setData("application/diagram-value", value);
     e.dataTransfer.effectAllowed = "copy";
+  };
+
+  const addIcon = (iconKey: string) => {
+    const preset = ICON_PRESETS.find((p) => p.icon === iconKey);
+    if (!preset) return;
+    const pos = center();
+    const off = nextOffset();
+    const node = buildIconNode(iconKey, t(preset.labelKey), { x: pos.x + off, y: pos.y + off });
+    if (node) addNode(node);
+    onAdded?.();
   };
 
   // Click-to-add places the item at the centre of the current viewport.
@@ -172,6 +211,41 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
               <span className="truncate text-[11px]">{t(`arch.${p.key}`)}</span>
             </button>
           ))}
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="p-3">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("palette.icons")}
+        </h3>
+        <div className="grid grid-cols-3 gap-1.5">
+          {ICON_PRESETS.map((p) => {
+            const Icon = ICON_MAP[p.icon];
+            const tone = TONES[p.tone] ?? TONES.slate;
+            return (
+              <button
+                key={p.icon}
+                type="button"
+                draggable
+                onDragStart={(e) => onDragStart(e, "icon", p.icon)}
+                onClick={() => addIcon(p.icon)}
+                title={`${t(p.labelKey)} · ${t("palette.hint")}`}
+                className="flex cursor-grab flex-col items-center gap-1 rounded-md border border-transparent p-1.5 transition-colors hover:border-border hover:bg-accent active:cursor-grabbing"
+              >
+                <span
+                  className="pointer-events-none flex h-7 w-7 items-center justify-center rounded-md"
+                  style={{ background: tone.fill, color: tone.stroke }}
+                >
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="w-full truncate text-center text-[10px] text-muted-foreground">
+                  {t(p.labelKey)}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

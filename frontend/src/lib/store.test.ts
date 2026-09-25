@@ -38,6 +38,13 @@ describe("addShapeNode", () => {
     expect((n.data as ShapeNodeData).shape).toBe("ellipse");
     expect(meta.saved).toBe(false);
   });
+
+  it("gives the new node a non-empty default label", () => {
+    useEditor.getState().addShapeNode("diamond", { x: 0, y: 0 });
+    const label = (useEditor.getState().nodes[0].data as ShapeNodeData).label;
+    expect(typeof label).toBe("string");
+    expect(label.length).toBeGreaterThan(0);
+  });
 });
 
 describe("onConnect", () => {
