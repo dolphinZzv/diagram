@@ -38,7 +38,10 @@ export interface EdgeData extends Record<string, unknown> {
   color: string;
   width: number;
   lineStyle: LineStyle;
+  /** arrow at the target end */
   arrowType: ArrowType;
+  /** arrow at the source end */
+  startArrowType: ArrowType;
   pathType: PathType;
   labelRotation: number;
   animated: boolean;
@@ -147,6 +150,7 @@ export function defaultEdgeData(): EdgeData {
     width: 2,
     lineStyle: "solid",
     arrowType: "arrowclosed",
+    startArrowType: "none",
     pathType: "bezier",
     labelRotation: 0,
     animated: false,

@@ -41,7 +41,7 @@ export function Canvas() {
   const onNodesChange = useEditor((s) => s.onNodesChange);
   const onEdgesChange = useEditor((s) => s.onEdgesChange);
   const onConnect = useEditor((s) => s.onConnect);
-  const setSelected = useEditor((s) => s.setSelected);
+  const setSelection = useEditor((s) => s.setSelection);
   const addNode = useEditor((s) => s.addNode);
   const addShapeNode = useEditor((s) => s.addShapeNode);
 
@@ -92,9 +92,9 @@ export function Canvas() {
 
   const onSelectionChange = useCallback(
     ({ nodes: sn, edges: se }: OnSelectionChangeParams) => {
-      setSelected(sn[0]?.id ?? se[0]?.id ?? null);
+      setSelection([...sn.map((n) => n.id), ...se.map((e) => e.id)]);
     },
-    [setSelected]
+    [setSelection]
   );
 
   return (

@@ -92,7 +92,10 @@ function CustomEdgeComponent({
   }, [points, pathType, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition]);
 
   const marker = markerPath(arrowType);
-  const markerId = `marker-${id}-${arrowType}`;
+  const markerId = `marker-end-${id}-${arrowType}`;
+  const startArrowType = data?.startArrowType ?? "none";
+  const startMarker = markerPath(startArrowType);
+  const startMarkerId = `marker-start-${id}-${startArrowType}`;
 
   const onWaypointDown = useCallback(
     (index: number, evt: React.PointerEvent) => {
@@ -161,11 +164,31 @@ function CustomEdgeComponent({
             <path d={marker.path} fill={arrowType === "arrow" ? "none" : color} stroke={color} strokeWidth={1.5} />
           </marker>
         )}
+        {startMarker && (
+          <marker
+            id={startMarkerId}
+            markerWidth={startMarker.size}
+            markerHeight={startMarker.size}
+            refX={1}
+            refY={startMarker.size / 2}
+            orient="auto-start-reverse"
+            viewBox={`0 0 ${startMarker.size} ${startMarker.size}`}
+            markerUnits="userSpaceOnUse"
+          >
+            <path
+              d={startMarker.path}
+              fill={startArrowType === "arrow" ? "none" : color}
+              stroke={color}
+              strokeWidth={1.5}
+            />
+          </marker>
+        )}
       </defs>
 
       <BaseEdge
         id={id}
         path={path}
+        markerStart={startMarker ? `url(#${startMarkerId})` : undefined}
         markerEnd={marker ? `url(#${markerId})` : undefined}
         style={{
           stroke: color,

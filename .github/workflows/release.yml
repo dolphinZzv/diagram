@@ -17,8 +17,41 @@ env:
   GO_VERSION_FILE: backend/go.mod
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend install
+        working-directory: frontend
+        run: npm ci
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm run test
+      - name: Frontend typecheck & build
+        working-directory: frontend
+        run: npm run build
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ env.GO_VERSION_FILE }}
+          cache-dependency-path: backend/go.sum
+      - name: Backend vet
+        working-directory: backend
+        run: go vet ./...
+      - name: Backend tests
+        working-directory: backend
+        run: go test ./...
+
   web:
     name: Build frontend
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

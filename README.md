@@ -24,12 +24,21 @@
 
 ### 连线（边）
 - **4 种路径类型**：贝塞尔曲线、直线、折线（直角）、折线（圆角）
-- **4 种箭头**：实心箭头、空心箭头、菱形、无
+- **4 种箭头**：实心箭头、空心箭头、菱形、无（起点 / 终点可分别设置）
 - **线条样式**：实线 / 虚线 / 点线
 - 颜色、粗细、流动动画
 - **可拖拽控制点**：选中连线后点击线段中点新增控制点，拖动改变线条走向，双击删除；也可整体清空
 - 连线标签，支持标签文字旋转角度
 - 也可直接拖动节点边缘圆点重新连接
+
+### 多选与布局
+- 框选 / Shift 多选节点与连线，批量修改颜色、粗细、字号、圆角、透明度、旋转
+- **对齐**：左 / 水平居中 / 右 / 顶 / 垂直居中 / 底
+- **分布**：水平等距 / 垂直等距
+- 批量复制、批量删除
+
+### 模板库
+- 内置 **基础流程图**、**微服务架构**、**数据管道** 三套模板，一键套用
 
 ### 画布与文档
 - 缩放、平移、框选、MiniMap、网格吸附
@@ -53,6 +62,8 @@
 ---
 
 ## 🚀 一键安装 / 更新
+
+> 所有二进制均由 GitHub Actions 交叉编译产出（linux/darwin/windows × amd64/arm64）。
 
 ### Linux / macOS
 
@@ -82,6 +93,23 @@ curl -fsSL .../install.sh | VERSION=v1.0.0 bash
 ### Windows
 
 从 [Releases](https://github.com/dolphinZzv/diagram/releases/latest) 下载 `diagram_windows_amd64.zip`，解压后运行 `diagram.exe`。
+
+---
+
+## 🔐 访问鉴权（可选）
+
+默认无需登录，适合本机 / 内网使用。若需暴露到公网，启动时设置 `DIAGRAM_TOKEN` 即可开启鉴权：
+
+```bash
+DIAGRAM_TOKEN=my-secret diagram
+```
+
+启用后：
+- 图纸相关接口（`/api/diagrams*`）需要 `Authorization: Bearer <token>`
+- 前端在右上角 **设置（齿轮）→ 访问令牌** 中填写 token，之后自动携带
+- `/api/health`、`/api/version`、`/api/update-check` 保持公开
+
+> 注意：请配合 HTTPS 反向代理使用，避免 token 明文传输。
 
 ### Docker（可选）
 
@@ -148,14 +176,16 @@ diagram/
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| `GET` | `/api/health` | 健康检查 |
-| `GET` | `/api/version` | 版本信息 |
-| `GET` | `/api/update-check` | 检查更新 |
-| `GET` | `/api/diagrams` | 图纸列表 |
-| `POST` | `/api/diagrams` | 新建图纸 |
-| `GET` | `/api/diagrams/{id}` | 获取图纸 |
-| `PUT` | `/api/diagrams/{id}` | 保存图纸 |
-| `DELETE` | `/api/diagrams/{id}` | 删除图纸 |
+| `GET` | `/api/health` | 健康检查（公开） |
+| `GET` | `/api/version` | 版本信息（公开） |
+| `GET` | `/api/update-check` | 检查更新（公开） |
+| `GET` | `/api/diagrams` | 图纸列表 * |
+| `POST` | `/api/diagrams` | 新建图纸 * |
+| `GET` | `/api/diagrams/{id}` | 获取图纸 * |
+| `PUT` | `/api/diagrams/{id}` | 保存图纸 * |
+| `DELETE` | `/api/diagrams/{id}` | 删除图纸 * |
+
+> \* 设置 `DIAGRAM_TOKEN` 后需要 `Authorization: Bearer <token>`。
 
 图纸数据格式（同时用于 JSON 导入导出）：
 
@@ -199,6 +229,24 @@ diagram/
   ]
 }
 ```
+
+---
+
+## 🧪 测试
+
+项目在 CI 中全量运行单元测试（无需本地安装依赖）。
+
+```bash
+# 后端
+cd backend && go test ./...
+
+# 前端
+cd frontend && npm ci && npm run test
+```
+
+覆盖内容：
+- **后端**：存储 CRUD / 排序 / 未找到处理、HTTP API 全流程、鉴权中间件、更新工具函数
+- **前端**：形状与连线默认值、几何路径计算、文档序列化/反序列化、zustand 编辑器（增删改、撤销重做、多选对齐与分布）、模板完整性
 
 ---
 

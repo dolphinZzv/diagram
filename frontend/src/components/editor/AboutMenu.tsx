@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Github, Info, RefreshCw, Settings } from "lucide-react";
+import { Github, Info, KeyRound, RefreshCw, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getToken, setToken } from "@/lib/api";
 import { toast } from "@/lib/toast";
 
 interface VersionInfo {
@@ -20,6 +23,7 @@ interface VersionInfo {
 export function AboutMenu() {
   const [info, setInfo] = useState<VersionInfo | null>(null);
   const [checking, setChecking] = useState(false);
+  const [token, setTokenState] = useState(getToken());
 
   useEffect(() => {
     fetch("/api/version")
@@ -54,6 +58,11 @@ export function AboutMenu() {
     }
   }, []);
 
+  const saveToken = useCallback(() => {
+    setToken(token.trim());
+    toast.success(token.trim() ? "已保存访问令牌" : "已清除访问令牌");
+  }, [token]);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -61,7 +70,7 @@ export function AboutMenu() {
           <Settings className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="flex items-center gap-2">
           <Info className="h-4 w-4" /> 关于 Diagram
         </DropdownMenuLabel>
@@ -72,12 +81,34 @@ export function AboutMenu() {
           <div>构建：{info?.date ? new Date(info.date).toLocaleDateString() : "…"}</div>
         </div>
         <DropdownMenuSeparator />
+
+        <div className="space-y-1.5 px-2 py-2" onPointerDown={(e) => e.stopPropagation()}>
+          <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <KeyRound className="h-3.5 w-3.5" /> 访问令牌（服务端启用鉴权时填写）
+          </Label>
+          <div className="flex gap-1.5">
+            <Input
+              value={token}
+              onChange={(e) => setTokenState(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") saveToken();
+              }}
+              placeholder="DIAGRAM_TOKEN"
+              className="h-8 text-xs"
+              type="password"
+            />
+            <Button size="sm" className="h-8" onClick={saveToken}>
+              保存
+            </Button>
+          </div>
+        </div>
+
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={checkUpdate} disabled={checking}>
           <RefreshCw className={checking ? "h-4 w-4 animate-spin" : "h-4 w-4"} /> 检查更新
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => window.open("https://github.com/dolphinZzv/diagram", "_blank")}
-        >
+        <DropdownMenuItem onClick={() => window.open("https://github.com/dolphinZzv/diagram", "_blank")}>
           <Github className="h-4 w-4" /> GitHub 仓库
         </DropdownMenuItem>
       </DropdownMenuContent>

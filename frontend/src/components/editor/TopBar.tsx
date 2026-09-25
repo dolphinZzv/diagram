@@ -12,6 +12,7 @@ import {
   Workflow,
   Trash2,
   FileImage,
+  LayoutTemplate,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useEditor } from "@/lib/store";
 import { exportImage, exportJSON, readJSONFile } from "@/lib/exporter";
 import { parseDiagramFile, serializeDoc } from "@/lib/doc";
+import { TEMPLATES } from "@/lib/templates";
 import { useReactFlow } from "@xyflow/react";
 import { toast } from "@/lib/toast";
 import { api } from "@/lib/api";
@@ -183,6 +185,36 @@ export function TopBar() {
         <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenOpen(true)}>
           <FolderOpen className="h-4 w-4" /> <span className="hidden md:inline">打开</span>
         </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8">
+              <LayoutTemplate className="h-4 w-4" /> <span className="hidden md:inline">模板</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel>从模板创建</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {TEMPLATES.map((tpl) => (
+              <DropdownMenuItem
+                key={tpl.id}
+                onClick={() => {
+                  if (!meta.saved && !confirm("当前图纸未保存，确定使用模板替换吗？")) return;
+                  const { nodes: tn, edges: te } = tpl.build();
+                  loadDoc(tn, te);
+                  setMeta({ id: null, name: tpl.name, description: tpl.description, saved: false });
+                  setTimeout(() => fitView({ padding: 0.25 }), 40);
+                  toast.success("已应用模板", tpl.name);
+                }}
+              >
+                <div className="flex flex-col">
+                  <span>{tpl.name}</span>
+                  <span className="text-[11px] text-muted-foreground">{tpl.description}</span>
+                </div>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="ghost" size="sm" className="h-8" onClick={() => onSave(false)}>
           <Save className="h-4 w-4" /> <span className="hidden md:inline">保存</span>
         </Button>

@@ -30,7 +30,10 @@ func newID() string {
 	return hex.EncodeToString(b)
 }
 
-func nowISO() string { return time.Now().UTC().Format(time.RFC3339) }
+// nowISO returns a fixed-width RFC3339 UTC timestamp with nanosecond
+// precision. Fixed width matters because SQLite stores these as TEXT and
+// orders them lexicographically.
+func nowISO() string { return time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z07:00") }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -100,30 +103,11 @@ func main() {
 	}
 	defer store.Close()
 
-	mux := http.NewServeMux()
+	handler := newRouter(store)
 
-	// API
-	api := &API{store: store}
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	})
-	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"version": version, "commit": commit, "date": date})
-	})
-	mux.HandleFunc("GET /api/update-check", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, checkUpdate())
-	})
-	mux.HandleFunc("GET /api/diagrams", api.List)
-	mux.HandleFunc("POST /api/diagrams", api.Create)
-	mux.HandleFunc("GET /api/diagrams/{id}", api.Get)
-	mux.HandleFunc("PUT /api/diagrams/{id}", api.Update)
-	mux.HandleFunc("DELETE /api/diagrams/{id}", api.Delete)
-
-	// Frontend (embedded at build time; falls back to disk during dev).
-	mux.Handle("/", spaHandler())
-
-	handler := loggingMiddleware(corsMiddleware(mux))
-
+	if os.Getenv("DIAGRAM_TOKEN") != "" {
+		log.Printf("auth enabled: API 需要 Bearer token")
+	}
 	log.Printf("diagram server %s listening on %s (db: %s)", version, *addr, *dbPath)
 	log.Printf("open: http://localhost:%s", portOf(*addr))
 	srv := &http.Server{
@@ -134,6 +118,39 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("listen: %v", err)
 	}
+}
+
+// newRouter wires the API and the embedded frontend. It is separated from
+// main so tests can exercise the full HTTP surface with httptest.
+func newRouter(store *Store) http.Handler {
+	mux := http.NewServeMux()
+	api := &API{store: store}
+
+	// Public endpoints (no auth): health, version, update check.
+	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+	mux.HandleFunc("GET /api/version", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"version": version, "commit": commit, "date": date})
+	})
+	mux.HandleFunc("GET /api/update-check", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, checkUpdate())
+	})
+
+	// Protected endpoints: diagram CRUD.
+	protected := http.NewServeMux()
+	protected.HandleFunc("GET /api/diagrams", api.List)
+	protected.HandleFunc("POST /api/diagrams", api.Create)
+	protected.HandleFunc("GET /api/diagrams/{id}", api.Get)
+	protected.HandleFunc("PUT /api/diagrams/{id}", api.Update)
+	protected.HandleFunc("DELETE /api/diagrams/{id}", api.Delete)
+	mux.Handle("/api/diagrams", authMiddleware(protected))
+	mux.Handle("/api/diagrams/", authMiddleware(protected))
+
+	// Frontend (embedded at build time; falls back to disk during dev).
+	mux.Handle("/", spaHandler())
+
+	return loggingMiddleware(corsMiddleware(mux))
 }
 
 func printHelp() {

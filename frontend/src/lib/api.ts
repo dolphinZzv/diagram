@@ -12,10 +12,34 @@ export interface DiagramRecord extends DiagramListItem {
 
 const base = "/api";
 
+/** Token is stored in localStorage and sent as a Bearer header when the
+ * server was started with DIAGRAM_TOKEN. */
+export function getToken(): string {
+  try {
+    return localStorage.getItem("diagram_token") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function setToken(token: string): void {
+  try {
+    if (token) localStorage.setItem("diagram_token", token);
+    else localStorage.removeItem("diagram_token");
+  } catch {
+    /* ignore */
+  }
+}
+
+function authHeaders(): Record<string, string> {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(base + url, {
-    headers: { "Content-Type": "application/json" },
     ...init,
+    headers: { "Content-Type": "application/json", ...authHeaders(), ...(init?.headers ?? {}) },
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");

@@ -27,3 +27,6 @@ pnpm-debug.log*
 .idea/
 .vscode/
 *.swp
+
+# Logs
+*.log

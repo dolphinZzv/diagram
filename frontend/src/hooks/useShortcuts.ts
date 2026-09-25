@@ -33,12 +33,12 @@ export function useShortcuts(onSave: () => void) {
       }
       if (editing) return;
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (state.selected) {
+        if (state.selectedIds.length > 0) {
           e.preventDefault();
           state.removeSelected();
         }
       }
-      if (e.key === "Escape") state.setSelected(null);
+      if (e.key === "Escape") state.setSelection([]);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
