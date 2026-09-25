@@ -160,3 +160,9 @@ button,
 .lifeline-node .react-flow__handle {
   opacity: 0 !important;
 }
+
+/* Hand-drawn (sketch) style applied to shapes and edges. */
+.sketch .shape-node svg,
+.sketch .react-flow__edge-path {
+  filter: url(#diagram-rough);
+}

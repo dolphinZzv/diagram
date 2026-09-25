@@ -9,11 +9,14 @@ import { Canvas } from "@/components/editor/Canvas";
 import { Inspector } from "@/components/editor/Inspector";
 import { SharedView } from "@/components/editor/SharedView";
 import { ShortcutsDialog } from "@/components/editor/ShortcutsDialog";
+import { CommandPalette } from "@/components/editor/CommandPalette";
 import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui";
 import { useDraftPersistence } from "@/hooks/useDraft";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useShareSync } from "@/hooks/useShareSync";
+import { useClipboardPaste } from "@/hooks/useClipboardPaste";
+import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/Toaster";
 
 function EditorApp() {
@@ -21,6 +24,8 @@ function EditorApp() {
   useDraftPersistence();
   useAutoSave();
   useShareSync();
+  useClipboardPaste();
+  const sketch = useUi((s) => s.sketch);
   const paletteOpen = useUi((s) => s.paletteOpen);
   const setPaletteOpen = useUi((s) => s.setPaletteOpen);
   const inspectorOpen = useUi((s) => s.inspectorOpen);
@@ -29,7 +34,13 @@ function EditorApp() {
   const setSelectMode = useUi((s) => s.setSelectMode);
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-muted/20">
+    <div className={cn("flex h-[100dvh] flex-col overflow-hidden bg-muted/20", sketch && "sketch")}>
+      <svg className="pointer-events-none absolute h-0 w-0" aria-hidden>
+        <filter id="diagram-rough">
+          <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.4" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
       <TopBar />
       <div className="flex flex-1 overflow-hidden">
         <aside className="hidden w-[210px] shrink-0 border-r bg-background lg:block">
@@ -87,6 +98,7 @@ function EditorApp() {
       </Sheet>
 
       <ShortcutsDialog />
+      <CommandPalette />
     </div>
   );
 }

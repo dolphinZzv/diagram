@@ -157,6 +157,30 @@ export function Shape({ shape, width, height, fill, stroke, strokeWidth, radius 
     case "text":
       return null;
 
+    case "note": {
+      const fold = Math.min(w * 0.2, 24);
+      const d = [
+        `M ${sw / 2},${sw / 2}`,
+        `L ${w - sw / 2},${sw / 2}`,
+        `L ${w - sw / 2},${h - fold - sw / 2}`,
+        `L ${w - fold - sw / 2},${h - sw / 2}`,
+        `L ${sw / 2},${h - sw / 2}`,
+        "Z",
+      ].join(" ");
+      return (
+        <g>
+          <path d={d} {...common} />
+          <path
+            d={`M ${w - sw / 2},${h - fold - sw / 2} L ${w - fold - sw / 2},${h - fold - sw / 2} L ${w - fold - sw / 2},${h - sw / 2}`}
+            fill="none"
+            stroke={stroke === "transparent" ? "none" : stroke}
+            strokeWidth={sw}
+            strokeLinejoin="round"
+          />
+        </g>
+      );
+    }
+
     default:
       return (
         <rect x={sw / 2} y={sw / 2} width={w - sw} height={h - sw} rx={Math.max(r - sw / 2, 0)} {...common} />

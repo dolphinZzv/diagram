@@ -21,6 +21,12 @@ interface UiState {
   messageDialog: { open: boolean; sourceId?: string };
   openMessageDialog: (sourceId?: string) => void;
   closeMessageDialog: () => void;
+  /** Hand-drawn look for shapes and edges. */
+  sketch: boolean;
+  toggleSketch: () => void;
+  /** Command palette (Ctrl/⌘+K). */
+  commandOpen: boolean;
+  setCommandOpen: (v: boolean) => void;
 }
 
 export const useUi = create<UiState>((set) => ({
@@ -38,6 +44,10 @@ export const useUi = create<UiState>((set) => ({
   messageDialog: { open: false },
   openMessageDialog: (sourceId) => set({ messageDialog: { open: true, sourceId } }),
   closeMessageDialog: () => set({ messageDialog: { open: false } }),
+  sketch: false,
+  toggleSketch: () => set({ sketch: !useUi.getState().sketch }),
+  commandOpen: false,
+  setCommandOpen: (v) => set({ commandOpen: v }),
 }));
 
 /** True on phones / tablets where the editor uses drawers. */

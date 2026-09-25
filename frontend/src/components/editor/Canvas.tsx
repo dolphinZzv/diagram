@@ -35,6 +35,7 @@ import {
   LayoutDashboard,
   Palette as PaletteIcon,
   Send,
+  Sparkles,
 } from "lucide-react";
 import { nodeTypes, edgeTypes } from "./flow-types";
 import { useEditor } from "@/lib/store";
@@ -47,7 +48,7 @@ import { useT } from "@/lib/i18n";
 import { isCompactLayout, useUi } from "@/lib/ui";
 import { toMermaid } from "@/lib/mermaid";
 import { DIAGRAM_PALETTES } from "@/lib/palettes";
-import { exportMermaid } from "@/lib/exporter";
+import { exportMermaid, copyImageToClipboard } from "@/lib/exporter";
 import { copyText } from "@/lib/clipboard";
 import { toast } from "@/lib/toast";
 import { ContextMenu, type CtxItem } from "./ContextMenu";
@@ -417,6 +418,24 @@ export function Canvas() {
         onClick: async () => {
           const ok = await copyText(toMermaid(s.nodes, s.edges));
           if (ok) toast.success(t("share.linkCopied"));
+        },
+      },
+      "separator",
+      {
+        label: t("command.beautify"),
+        icon: <Sparkles className="h-4 w-4" />,
+        onClick: () => s.beautify("ocean"),
+      },
+      {
+        label: t("command.sketch"),
+        icon: <Pencil className="h-4 w-4" />,
+        onClick: () => useUi.getState().toggleSketch(),
+      },
+      {
+        label: t("command.copyImage"),
+        onClick: async () => {
+          const r = await copyImageToClipboard(s.nodes, s.edges, theme);
+          toast.success(r === "copied" ? t("command.imageCopied") : t("topbar.exportedImage", { format: "PNG" }));
         },
       },
       "separator",

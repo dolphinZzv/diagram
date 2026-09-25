@@ -10,6 +10,7 @@ export type ShapeType =
   | "document"
   | "star"
   | "cloud"
+  | "note"
   | "text";
 
 export type LineStyle = "solid" | "dashed" | "dotted";
@@ -35,6 +36,8 @@ export interface ShapeNodeData extends Record<string, unknown> {
   locked: boolean;
   /** optional lucide icon name rendered inside the node */
   icon?: string;
+  /** optional image URL (rendered filling the node) */
+  imageUrl?: string;
 }
 
 export interface EdgeData extends Record<string, unknown> {
@@ -71,6 +74,7 @@ export const SHAPE_LABELS: Record<ShapeType, string> = {
   document: "文档",
   star: "星形",
   cloud: "云",
+  note: "便签",
   text: "文本",
 };
 
@@ -86,6 +90,7 @@ export const SHAPE_LIST: ShapeType[] = [
   "document",
   "star",
   "cloud",
+  "note",
   "text",
 ];
 
@@ -134,6 +139,14 @@ export function defaultNodeData(shape: ShapeType = "rect"): ShapeNodeData {
   if (shape === "cloud") {
     base.width = 140;
     base.height = 90;
+  }
+  if (shape === "note") {
+    base.fill = "#fef9c3";
+    base.stroke = "#eab308";
+    base.textColor = "#713f12";
+    base.width = 140;
+    base.height = 100;
+    base.radius = 4;
   }
   if (shape === "star") {
     base.width = 120;

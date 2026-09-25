@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Download,
   FileJson,
@@ -20,6 +20,8 @@ import {
   Moon,
   Keyboard,
   FileCode2,
+  Search,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditor } from "@/lib/store";
-import { exportPNG, exportSVG, exportJSON, readJSONFile, exportMermaid } from "@/lib/exporter";
+import { exportPNG, exportSVG, exportJSON, readJSONFile, exportMermaid, copyImageToClipboard } from "@/lib/exporter";
 import { toMermaid } from "@/lib/mermaid";
 import { parseDiagramFile, serializeDoc } from "@/lib/doc";
 import { TEMPLATES } from "@/lib/templates";
@@ -172,6 +174,14 @@ export function TopBar() {
 
   useShortcuts(() => onSave(false));
 
+  useEffect(() => {
+    const onSaveEvent = () => {
+      void onSave(false);
+    };
+    window.addEventListener("diagram:save", onSaveEvent);
+    return () => window.removeEventListener("diagram:save", onSaveEvent);
+  }, [onSave]);
+
   const statusDot = (
     <span
       className={cn("h-1.5 w-1.5 shrink-0 rounded-full", meta.saved ? "bg-green-500" : "bg-amber-500")}
@@ -284,8 +294,32 @@ export function TopBar() {
             >
               <FileCode2 className="h-4 w-4" /> {t("command.exportMermaid")}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={async () => {
+                const r = await copyImageToClipboard(nodes, edges, theme);
+                toast.success(
+                  r === "copied" ? t("command.imageCopied") : t("topbar.exportedImage", { format: "PNG" })
+                );
+              }}
+            >
+              <Copy className="h-4 w-4" /> {t("command.copyImage")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => useUi.getState().setCommandOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("command.title")}</TooltipContent>
+        </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -378,6 +412,9 @@ export function TopBar() {
             </DropdownMenuSub>
 
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => useUi.getState().setCommandOpen(true)}>
+              <Search className="h-4 w-4" /> {t("command.title")}
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => useUi.getState().setShortcutsOpen(true)}>
               <Keyboard className="h-4 w-4" /> {t("shortcuts.menu")}
             </DropdownMenuItem>

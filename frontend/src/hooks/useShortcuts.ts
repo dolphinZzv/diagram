@@ -17,6 +17,11 @@ export function useShortcuts(onSave: () => void) {
         onSave();
         return;
       }
+      if (mod && (key === "k" || key === "f")) {
+        e.preventDefault();
+        useUi.getState().setCommandOpen(true);
+        return;
+      }
 
       // While typing, let the browser handle everything else.
       if (editing) return;
@@ -41,6 +46,16 @@ export function useShortcuts(onSave: () => void) {
       if (mod && key === "y") {
         e.preventDefault();
         state.redo();
+        return;
+      }
+      if (mod && e.shiftKey && key === "c") {
+        e.preventDefault();
+        state.copyStyle();
+        return;
+      }
+      if (mod && e.shiftKey && key === "v") {
+        e.preventDefault();
+        state.pasteStyle();
         return;
       }
       if (mod && key === "c") {

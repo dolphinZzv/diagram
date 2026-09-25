@@ -16,6 +16,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorField } from "./ColorField";
 import { ICON_KEYS } from "./icons";
+import { STYLE_PRESETS, presetStyle } from "@/lib/stylePresets";
 import { useEditor, type AlignMode } from "@/lib/store";
 import { SHAPE_LIST, type EdgeData, type ShapeNodeData } from "@/lib/types";
 import { useT } from "@/lib/i18n";
@@ -163,6 +164,7 @@ export function Inspector() {
 function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
   const t = useT();
   const update = useEditor((s) => s.updateNodeData);
+  const applyStyle = useEditor((s) => s.applyStyle);
   const remove = useEditor((s) => s.removeSelected);
   const setSelected = useEditor((s) => s.setSelected);
   const setLocked = useEditor((s) => s.setLocked);
@@ -186,6 +188,27 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-3">
+        <Row label={t("command.presets")}>
+          <div className="flex flex-wrap gap-1">
+            {STYLE_PRESETS.map((p) => (
+              <button
+                key={p.nameKey}
+                type="button"
+                title={t(p.nameKey)}
+                onClick={() => applyStyle(presetStyle(p))}
+                className="h-6 w-6 rounded border-2"
+                style={{
+                  background:
+                    p.fill === "transparent"
+                      ? "repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 50% / 8px 8px"
+                      : p.fill,
+                  borderColor: p.stroke,
+                }}
+              />
+            ))}
+          </div>
+        </Row>
+
         <Row label={t("inspector.text")}>
           <Input
             value={data.label}

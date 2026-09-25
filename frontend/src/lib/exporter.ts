@@ -1,5 +1,4 @@
-import type { Edge, Node } from "@xyflow/react";
-import { diagramToSvg } from "./svgExport";
+import type { Edge, Node } from "@xyflow/react";import { diagramToSvg } from "./svgExport";
 import type { Theme } from "./theme";
 
 function download(url: string, filename: string) {
@@ -93,6 +92,28 @@ export function exportText(text: string, filename: string, mime = "text/plain") 
 
 export function exportMermaid(text: string, filename = "diagram") {
   exportText(text, `${filename}.mmd`, "text/plain;charset=utf-8");
+}
+
+/** Copies the diagram as a PNG image to the system clipboard (falls back to download). */
+export async function copyImageToClipboard(
+  nodes: Node[],
+  edges: Edge[],
+  theme: Theme = "light"
+): Promise<"copied" | "downloaded"> {
+  const svg = renderSvg(nodes, edges, theme);
+  const blob = await svgToPngBlob(svg, 2);
+  try {
+    if (window.isSecureContext && navigator.clipboard && "ClipboardItem" in window) {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      return "copied";
+    }
+  } catch {
+    /* fall through to download */
+  }
+  const url = URL.createObjectURL(blob);
+  download(url, "diagram.png");
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return "downloaded";
 }
 
 export function readJSONFile(file: File): Promise<unknown> {

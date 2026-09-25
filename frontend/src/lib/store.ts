@@ -15,6 +15,7 @@ import { defaultShapeLabel, tr } from "./i18n";
 import { layoutLayered } from "./layout";
 import { layoutMindMap } from "./mindmap";
 import { paletteTone } from "./palettes";
+import type { NodeStyle } from "./stylePresets";
 import { SEQ_HEIGHT, SEQ_ROWS, SEQ_WIDTH, parseRow, rowHandleId } from "./sequence";
 
 export interface DiagramMeta {
@@ -82,6 +83,12 @@ interface EditorState {
   addSiblingNode: (nodeId: string) => void;
   addParticipant: () => void;
   addMessage: (sourceId: string, targetId: string, label?: string, lineStyle?: LineStyle) => string | undefined;
+  styleClipboard: NodeStyle | null;
+  copyStyle: () => void;
+  pasteStyle: () => void;
+  applyStyle: (style: Partial<ShapeNodeData>) => void;
+  beautify: (paletteKey?: string) => void;
+  addImageNode: (imageUrl: string, position?: { x: number; y: number }) => void;
 
   loadDoc: (nodes: Node[], edges: Edge[]) => void;
   clearAll: () => void;
@@ -121,6 +128,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   selected: null,
   selectedIds: [],
   clipboard: null,
+  styleClipboard: null,
   past: [],
   future: [],
 
@@ -760,6 +768,115 @@ export const useEditor = create<EditorState>((set, get) => ({
       meta: { ...get().meta, saved: false },
     });
     return edge.id;
+  },
+
+  copyStyle: () => {
+    const { nodes, selectedIds } = get();
+    const node = nodes.find((n) => selectedIds.includes(n.id));
+    if (!node) return;
+    const d = node.data as ShapeNodeData;
+    set({
+      styleClipboard: {
+        fill: d.fill,
+        stroke: d.stroke,
+        strokeWidth: d.strokeWidth,
+        radius: d.radius,
+        textColor: d.textColor,
+        fontSize: d.fontSize,
+        fontWeight: d.fontWeight,
+        fontStyle: d.fontStyle,
+        opacity: d.opacity,
+      },
+    });
+  },
+
+  pasteStyle: () => {
+    const { nodes, selectedIds, styleClipboard, pushHistory } = get();
+    if (!styleClipboard || selectedIds.length === 0) return;
+    pushHistory();
+    const sel = new Set(selectedIds);
+    set({
+      nodes: nodes.map((n) =>
+        sel.has(n.id) && n.type !== "group" ? { ...n, data: { ...n.data, ...styleClipboard } } : n
+      ),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  applyStyle: (style) => {
+    const { nodes, selectedIds, pushHistory } = get();
+    if (selectedIds.length === 0) return;
+    pushHistory();
+    const sel = new Set(selectedIds);
+    set({
+      nodes: nodes.map((n) =>
+        sel.has(n.id) && n.type !== "group" ? { ...n, data: { ...n.data, ...style } } : n
+      ),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  beautify: (paletteKey) => {
+    const { nodes, pushHistory } = get();
+    if (nodes.length === 0) return;
+    pushHistory();
+    let i = 0;
+    set({
+      nodes: nodes.map((n) => {
+        if (n.type === "group") return n;
+        const position = {
+          x: Math.round(n.position.x / 10) * 10,
+          y: Math.round(n.position.y / 10) * 10,
+        };
+        const base = {
+          ...n.data,
+          radius: 10,
+          strokeWidth: 2,
+          fontSize: 14,
+          fontWeight: "normal",
+          fontStyle: "normal",
+          opacity: 1,
+        };
+        if (paletteKey) {
+          const tone = paletteTone(paletteKey, i);
+          i += 1;
+          if (tone) {
+            return {
+              ...n,
+              position,
+              data: { ...base, fill: tone.fill, stroke: tone.stroke, textColor: tone.textColor },
+            };
+          }
+        }
+        return { ...n, position, data: base };
+      }),
+      meta: { ...get().meta, saved: false },
+    });
+  },
+
+  addImageNode: (imageUrl, position) => {
+    const { nodes, pushHistory } = get();
+    pushHistory();
+    const data: ShapeNodeData = {
+      ...defaultNodeData("rect"),
+      label: "",
+      imageUrl,
+      fill: "transparent",
+      stroke: "transparent",
+      width: 220,
+      height: 150,
+    };
+    const pos = position ?? { x: 0, y: 0 };
+    const id = uid("n_");
+    set({
+      nodes: [
+        ...nodes.map((n) => ({ ...n, selected: false })),
+        { id, type: "shape", position: pos, data, style: { width: data.width, height: data.height }, selected: true },
+      ],
+      selectedIds: [id],
+      selected: id,
+      meta: { ...get().meta, saved: false },
+    });
   },
 
   clearAll: () => {

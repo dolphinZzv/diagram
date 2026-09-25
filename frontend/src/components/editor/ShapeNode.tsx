@@ -51,15 +51,26 @@ function ShapeNodeComponent({ id, data, selected, width, height }: NodeProps<Sha
         style={{ transform: `rotate(${data.rotation || 0}deg)`, transformOrigin: "center center" }}
       >
         <svg width={w} height={h} className="block overflow-visible" style={{ opacity: data.opacity ?? 1 }}>
-          <Shape
-            shape={data.shape}
-            width={w}
-            height={h}
-            fill={data.fill}
-            stroke={data.stroke}
-            strokeWidth={data.strokeWidth}
-            radius={data.radius}
-          />
+          {data.imageUrl ? (
+            <image
+              href={data.imageUrl}
+              x={0}
+              y={0}
+              width={w}
+              height={h}
+              preserveAspectRatio="xMidYMid meet"
+            />
+          ) : (
+            <Shape
+              shape={data.shape}
+              width={w}
+              height={h}
+              fill={data.fill}
+              stroke={data.stroke}
+              strokeWidth={data.strokeWidth}
+              radius={data.radius}
+            />
+          )}
         </svg>
         {editing ? (
           <textarea

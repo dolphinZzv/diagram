@@ -38,6 +38,8 @@ export function AboutMenu() {
   const [checking, setChecking] = useState(false);
   const [token, setTokenState] = useState(getToken());
   const [autoSave, setAutoSave] = useState(isAutoSaveEnabled());
+  const sketch = useUi((s) => s.sketch);
+  const toggleSketch = useUi((s) => s.toggleSketch);
 
   useEffect(() => {
     fetch("/api/version")
@@ -185,6 +187,14 @@ export function AboutMenu() {
               setAutoSaveEnabled(v);
             }}
           />
+        </div>
+
+        <div
+          className="flex items-center justify-between px-2 py-2"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <Label className="text-xs text-muted-foreground">{t("command.sketch")}</Label>
+          <Switch checked={sketch} onCheckedChange={() => toggleSketch()} />
         </div>
 
         <DropdownMenuSeparator />
