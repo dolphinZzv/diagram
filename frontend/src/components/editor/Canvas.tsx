@@ -16,24 +16,11 @@ import "@xyflow/react/dist/style.css";
 import { ShapeNode } from "./ShapeNode";
 import { CustomEdge } from "./CustomEdge";
 import { useEditor } from "@/lib/store";
-import { ARCH_PRESETS } from "./ShapePalette";
+import { ARCH_PRESETS, PRESET_SHAPES } from "./ShapePalette";
 import { defaultNodeData, type ShapeType } from "@/lib/types";
 
 const nodeTypes = { shape: ShapeNode };
 const edgeTypes = { custom: CustomEdge };
-
-const PRESET_SHAPES: Record<string, ShapeType> = {
-  db: "cylinder",
-  storage: "cylinder",
-  mq: "parallelogram",
-  cdn: "cloud",
-  worker: "hexagon",
-  client: "rounded",
-  gateway: "hexagon",
-  service: "rounded",
-  cache: "ellipse",
-  lb: "diamond",
-};
 
 export function Canvas() {
   const nodes = useEditor((s) => s.nodes);

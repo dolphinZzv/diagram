@@ -1,6 +1,10 @@
+import { useRef } from "react";
+import { useReactFlow } from "@xyflow/react";
+import { MousePointerClick } from "lucide-react";
 import { Shape } from "./Shape";
 import { Separator } from "@/components/ui/separator";
-import { SHAPE_LIST, SHAPE_LABELS, type ShapeType } from "@/lib/types";
+import { useEditor } from "@/lib/store";
+import { defaultNodeData, SHAPE_LIST, SHAPE_LABELS, type ShapeType } from "@/lib/types";
 
 interface Preset {
   key: string;
@@ -23,43 +27,110 @@ const ARCH_PRESETS: Preset[] = [
   { key: "worker", label: "任务 Worker", fill: "#ffedd5", stroke: "#ea580c", textColor: "#9a3412" },
 ];
 
+/** Map an architecture preset to a visual shape. */
+const PRESET_SHAPES: Record<string, ShapeType> = {
+  db: "cylinder",
+  storage: "cylinder",
+  mq: "parallelogram",
+  cdn: "cloud",
+  worker: "hexagon",
+  client: "rounded",
+  gateway: "hexagon",
+  service: "rounded",
+  cache: "ellipse",
+  lb: "diamond",
+};
+
 function ShapeThumb({ shape }: { shape: ShapeType }) {
   return (
-    <svg width={40} height={30} viewBox="0 0 40 30" className="overflow-visible">
+    <svg width={40} height={30} viewBox="0 0 40 30" className="pointer-events-none overflow-visible">
       <g transform="translate(2,2)">
-        <Shape
-          shape={shape}
-          width={36}
-          height={26}
-          fill="#f8fafc"
-          stroke="#475569"
-          strokeWidth={1.5}
-          radius={5}
-        />
+        <Shape shape={shape} width={36} height={26} fill="#f8fafc" stroke="#475569" strokeWidth={1.5} radius={5} />
       </g>
     </svg>
   );
 }
 
+/** Returns flow coordinates for the centre of the visible canvas. */
+function useViewportCenter() {
+  const { screenToFlowPosition } = useReactFlow();
+  return () => {
+    const pane = document.querySelector(".react-flow__pane") as HTMLElement | null;
+    const rect = pane?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const y = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+    return screenToFlowPosition({ x, y });
+  };
+}
+
 export function ShapePalette() {
+  const center = useViewportCenter();
+  const addShapeNode = useEditor((s) => s.addShapeNode);
+  const addNode = useEditor((s) => s.addNode);
+  const cascade = useRef(0);
+
+  // Offset successive click-adds so they don't stack on top of each other.
+  const nextOffset = () => {
+    const n = cascade.current++ % 6;
+    return n * 24;
+  };
+
   const onDragStart = (e: React.DragEvent, kind: "shape" | "preset", value: string) => {
     e.dataTransfer.setData("application/diagram-kind", kind);
     e.dataTransfer.setData("application/diagram-value", value);
     e.dataTransfer.effectAllowed = "copy";
   };
 
+  // Click-to-add places the item at the centre of the current viewport.
+  const addShape = (shape: ShapeType) => {
+    const data = defaultNodeData(shape);
+    const pos = center();
+    const off = nextOffset();
+    addShapeNode(shape, { x: pos.x - data.width / 2 + off, y: pos.y - data.height / 2 + off });
+  };
+
+  const addPreset = (key: string) => {
+    const preset = ARCH_PRESETS.find((p) => p.key === key);
+    if (!preset) return;
+    const shape = PRESET_SHAPES[key] ?? "rounded";
+    const data = {
+      ...defaultNodeData(shape),
+      label: preset.label,
+      fill: preset.fill,
+      stroke: preset.stroke,
+      textColor: preset.textColor,
+    };
+    const pos = center();
+    const off = nextOffset();
+    addNode({
+      id: `n_${crypto.randomUUID().slice(0, 8)}`,
+      type: "shape",
+      position: { x: pos.x - data.width / 2 + off, y: pos.y - data.height / 2 + off },
+      data,
+      style: { width: data.width, height: data.height },
+      selected: true,
+    });
+  };
+
   return (
     <div className="flex h-full flex-col overflow-y-auto">
+      <div className="flex items-center gap-1.5 border-b bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+        <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
+        <span>拖拽到画布，或点击直接添加</span>
+      </div>
+
       <div className="p-3">
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">基础形状</h3>
         <div className="grid grid-cols-3 gap-1.5">
           {SHAPE_LIST.map((shape) => (
             <button
               key={shape}
+              type="button"
               draggable
               onDragStart={(e) => onDragStart(e, "shape", shape)}
-              title={SHAPE_LABELS[shape]}
-              className="flex flex-col items-center gap-1 rounded-md border border-transparent p-1.5 transition-colors hover:border-border hover:bg-accent"
+              onClick={() => addShape(shape)}
+              title={`${SHAPE_LABELS[shape]}（拖拽或点击添加）`}
+              className="flex cursor-grab flex-col items-center gap-1 rounded-md border border-transparent p-1.5 transition-colors hover:border-border hover:bg-accent active:cursor-grabbing"
             >
               <ShapeThumb shape={shape} />
               <span className="w-full truncate text-center text-[10px] text-muted-foreground">
@@ -78,12 +149,15 @@ export function ShapePalette() {
           {ARCH_PRESETS.map((p) => (
             <button
               key={p.key}
+              type="button"
               draggable
               onDragStart={(e) => onDragStart(e, "preset", p.key)}
-              className="flex items-center gap-2 rounded-md border p-1.5 text-left transition-colors hover:bg-accent"
+              onClick={() => addPreset(p.key)}
+              title={`${p.label}（拖拽或点击添加）`}
+              className="flex cursor-grab items-center gap-2 rounded-md border p-1.5 text-left transition-colors hover:bg-accent active:cursor-grabbing"
             >
               <span
-                className="h-4 w-4 shrink-0 rounded"
+                className="pointer-events-none h-4 w-4 shrink-0 rounded"
                 style={{ background: p.fill, border: `2px solid ${p.stroke}` }}
               />
               <span className="truncate text-[11px]">{p.label}</span>
@@ -95,4 +169,4 @@ export function ShapePalette() {
   );
 }
 
-export { ARCH_PRESETS };
+export { ARCH_PRESETS, PRESET_SHAPES };
