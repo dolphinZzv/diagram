@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { Bold, Italic, RotateCw, Trash2, X, Copy, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Group, Ungroup, Lock, LockOpen } from "lucide-react";
+import { Bold, Italic, RotateCw, Trash2, X, Copy, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Group, Ungroup, Lock, LockOpen, Plus, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -152,6 +152,8 @@ export function Inspector() {
   const edge = useMemo(() => edges.find((e) => e.id === selected), [edges, selected]);
 
   if (selectedIds.length > 1) return <MultiInspector />;
+  if (node && node.type === "lifeline")
+    return <LifelineInspector id={node.id} data={node.data as ShapeNodeData} />;
   if (node) return <NodeInspector id={node.id} data={node.data as ShapeNodeData} />;
   if (edge) return <EdgeInspector id={edge.id} data={edge.data as EdgeData} />;
   return <CanvasInspector />;
@@ -324,6 +326,68 @@ function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {
         </div>
 
         <SliderRow label={t("inspector.opacity")} value={data.opacity} min={0.1} max={1} step={0.05} onChange={(v) => update(id, { opacity: v })} />
+      </div>
+    </div>
+  );
+}
+
+function LifelineInspector({ id, data }: { id: string; data: ShapeNodeData }) {
+  const t = useT();
+  const update = useEditor((s) => s.updateNodeData);
+  const remove = useEditor((s) => s.removeSelected);
+  const setSelected = useEditor((s) => s.setSelected);
+  const addMessage = useEditor((s) => s.addMessage);
+  const addParticipant = useEditor((s) => s.addParticipant);
+
+  const addToNext = () => {
+    const s = useEditor.getState();
+    const me = s.nodes.find((n) => n.id === id);
+    if (!me) return;
+    const next = s.nodes
+      .filter((n) => n.type === "lifeline" && n.id !== id && n.position.x > me.position.x)
+      .sort((a, b) => a.position.x - b.position.x)[0];
+    if (next) addMessage(id, next.id);
+  };
+
+  return (
+    <div className="flex h-full flex-col">
+      <header className="flex items-center justify-between border-b px-3 py-2">
+        <span className="text-sm font-semibold">{t("inspector.lifelineTitle")}</span>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(null)} title={t("inspector.cancel")}>
+            <X className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={remove} title={t("inspector.remove")}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex-1 space-y-4 overflow-y-auto p-3">
+        <Row label={t("inspector.label")}>
+          <Input value={data.label} onChange={(e) => update(id, { label: e.target.value })} className="h-8 text-xs" />
+        </Row>
+        <Row label={t("inspector.fill")}>
+          <ColorField value={data.fill} onChange={(v) => update(id, { fill: v })} />
+        </Row>
+        <Row label={t("inspector.stroke")}>
+          <ColorField value={data.stroke} onChange={(v) => update(id, { stroke: v })} />
+        </Row>
+        <Row label={t("inspector.textColor")}>
+          <ColorField value={data.textColor} onChange={(v) => update(id, { textColor: v })} />
+        </Row>
+        <SliderRow label={t("inspector.fontSize")} value={data.fontSize} min={10} max={28} onChange={(v) => update(id, { fontSize: v })} />
+
+        <Separator />
+        <div className="grid grid-cols-1 gap-2">
+          <Button variant="outline" size="sm" className="h-9" onClick={addToNext}>
+            <Send className="h-3.5 w-3.5" /> {t("seq.addMessage")}
+          </Button>
+          <Button variant="outline" size="sm" className="h-9" onClick={addParticipant}>
+            <Plus className="h-3.5 w-3.5" /> {t("seq.addParticipant")}
+          </Button>
+        </div>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">{t("seq.hint")}</p>
       </div>
     </div>
   );

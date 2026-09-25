@@ -81,7 +81,7 @@ interface EditorState {
   addChildNode: (parentId: string) => void;
   addSiblingNode: (nodeId: string) => void;
   addParticipant: () => void;
-  addMessage: (sourceId: string, targetId: string, label?: string) => void;
+  addMessage: (sourceId: string, targetId: string, label?: string) => string | undefined;
 
   loadDoc: (nodes: Node[], edges: Edge[]) => void;
   clearAll: () => void;
@@ -752,7 +752,13 @@ export const useEditor = create<EditorState>((set, get) => ({
         arrowType: "arrowclosed",
       },
     };
-    set({ edges: [...edges, edge], meta: { ...get().meta, saved: false } });
+    set({
+      edges: [...edges, edge],
+      selectedIds: [edge.id],
+      selected: edge.id,
+      meta: { ...get().meta, saved: false },
+    });
+    return edge.id;
   },
 
   clearAll: () => {

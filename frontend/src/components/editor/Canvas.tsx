@@ -365,12 +365,27 @@ export function Canvas() {
                 label: t("seq.addMessage"),
                 icon: <Send className="h-4 w-4" />,
                 onClick: () => {
-                  const next = s.nodes
-                    .filter(
-                      (n) => n.type === "lifeline" && n.id !== id && n.position.x > node.position.x
-                    )
-                    .sort((a, b) => a.position.x - b.position.x)[0];
-                  if (next) s.addMessage(id, next.id);
+                  const selectedLifelines = s.selectedIds
+                    .map((sid) => s.nodes.find((n) => n.id === sid))
+                    .filter((n): n is Node => !!n && n.type === "lifeline");
+                  let targetId: string | undefined;
+                  if (selectedLifelines.length >= 2) {
+                    const sorted = [...selectedLifelines].sort((a, b) => a.position.x - b.position.x);
+                    const me = sorted.find((n) => n.id === id) ?? sorted[0];
+                    targetId = sorted.find((n) => n.id !== me.id)?.id;
+                  } else {
+                    targetId = s.nodes
+                      .filter(
+                        (n) =>
+                          n.type === "lifeline" &&
+                          n.id !== id &&
+                          n.position.x > (node?.position.x ?? 0)
+                      )
+                      .sort((a, b) => a.position.x - b.position.x)[0]?.id;
+                  }
+                  if (!targetId) return;
+                  const edgeId = s.addMessage(id, targetId);
+                  if (edgeId && compact) useUi.getState().setInspectorOpen(true);
                 },
               } as CtxItem,
               { label: t("seq.addParticipant"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addParticipant() },
@@ -395,7 +410,14 @@ export function Canvas() {
       { label: t("ctx.paste"), icon: <ClipboardPaste className="h-4 w-4" />, shortcut: "Ctrl V", disabled: !s.clipboard, onClick: () => s.paste() },
       { label: t("ctx.selectAll"), icon: <MousePointer2 className="h-4 w-4" />, shortcut: "Ctrl A", onClick: () => s.selectAll() },
       "separator",
-      { label: t("seq.addParticipant"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addParticipant() },
+      {
+        label: t("seq.addParticipant"),
+        icon: <Plus className="h-4 w-4" />,
+        onClick: () => {
+          s.addParticipant();
+          if (compact) useUi.getState().setInspectorOpen(true);
+        },
+      },
       "separator",
       { label: t("command.autoLayoutTB"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("TB") },
       { label: t("command.autoLayoutLR"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("LR") },

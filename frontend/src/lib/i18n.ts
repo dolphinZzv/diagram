@@ -148,6 +148,7 @@ const zh: Dict = {
   // inspector
   "inspector.panelTitle": "属性",
   "inspector.nodeTitle": "节点属性",
+  "inspector.lifelineTitle": "参与者属性",
   "inspector.edgeTitle": "连线属性",
   "inspector.canvasTitle": "画布 / 文档",
   "inspector.cancel": "取消选择",
@@ -429,6 +430,7 @@ const zh: Dict = {
   "seq.message": "消息",
   "seq.addParticipant": "添加参与者",
   "seq.addMessage": "添加消息",
+  "seq.hint": "选中参与者后点「添加消息」连接到右侧下一个参与者；选中两个参与者则连接两者。",
   "command.title": "命令面板",
   "command.placeholder": "搜索操作、图形、模板、图纸、节点…",
   "command.actions": "操作",
@@ -586,6 +588,7 @@ const en: Dict = {
 
   "inspector.panelTitle": "Properties",
   "inspector.nodeTitle": "Node",
+  "inspector.lifelineTitle": "Participant",
   "inspector.edgeTitle": "Edge",
   "inspector.canvasTitle": "Canvas / Document",
   "inspector.cancel": "Deselect",
@@ -859,6 +862,7 @@ const en: Dict = {
   "seq.message": "Message",
   "seq.addParticipant": "Add participant",
   "seq.addMessage": "Add message",
+  "seq.hint": "With one participant selected, “Add message” connects to the next one on the right; with two selected it connects them.",
   "command.title": "Command palette",
   "command.placeholder": "Search actions, shapes, templates, diagrams, nodes…",
   "command.actions": "Actions",
