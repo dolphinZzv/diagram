@@ -185,3 +185,36 @@ Diagram 是一个流程图 / 架构图设计器，内置 **MCP server**。你可
 | 分享图片 404 | 需先在网页端「分享」里生成图片链接 |
 
 更详细的接入与原始 JSON-RPC/curl 示例见仓库 `docs/mcp.md`。
+
+---
+
+## 9. 浏览器内 agent（WebMCP / window.diagramAgent）
+
+当网页编辑器打开时，它会把一组工具暴露给**浏览器内的 agent**，让 agent 直接操作当前画布（无需服务端、无需扩展）：
+
+- **WebMCP**：如果浏览器支持实验性的 `navigator.modelContext`，编辑器会自动注册这批工具。
+- **兜底通道**：始终暴露 `window.diagramAgent`，任何扩展 / 书签 / 控制台 / agent 都可调用：
+  ```js
+  window.diagramAgent.tools                       // [{name, description}]
+  await window.diagramAgent.call("diagram_get_state")
+  await window.diagramAgent.call("diagram_add_node", { shape: "rounded", label: "网关", x: 0, y: 0 })
+  ```
+
+工具（12 个，都在本地 store 上执行，**用户可撤销**）：
+
+| 工具 | 说明 |
+| --- | --- |
+| `diagram_get_state` | 读取当前图纸（名称 / 节点 / 连线 / 选中），**先调它拿 id** |
+| `diagram_add_node` | 加节点：`shape` `label` `x` `y` `fill` `stroke` `textColor` `width` `height` |
+| `diagram_update_node` | 改节点：`nodeId` + `patch` |
+| `diagram_remove_nodes` | 删节点（含相连的线） |
+| `diagram_add_edge` | 连线：`source` `target` `sourceHandle` `targetHandle` `label` `lineStyle` … |
+| `diagram_remove_edges` | 删连线 |
+| `diagram_select` | 选中节点/连线 |
+| `diagram_set_name` | 重命名图纸 |
+| `diagram_auto_layout` | 自动布局（`TB` / `LR`） |
+| `diagram_undo` | 撤销上一步 |
+| `diagram_export_mermaid` | 导出 Mermaid 文本 |
+| `diagram_list_templates` | 列出内置模板 |
+
+典型用法：先 `diagram_get_state`，再 `diagram_add_node`（多次）→ `diagram_add_edge` → 再 `diagram_get_state` 校验。

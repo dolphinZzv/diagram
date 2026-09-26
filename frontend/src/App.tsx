@@ -21,6 +21,7 @@ import { useUi } from "@/lib/ui";
 import { useDraftPersistence } from "@/hooks/useDraft";
 import { useDocumentBootstrap } from "@/hooks/useDocumentBootstrap";
 import { useRealtime } from "@/hooks/useRealtime";
+import { useAgentTools } from "@/hooks/useAgentTools";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useShareSync } from "@/hooks/useShareSync";
 import { useClipboardPaste } from "@/hooks/useClipboardPaste";
@@ -64,6 +65,7 @@ function EditorApp({ editToken }: { editToken?: string }) {
   useDraftPersistence();
   useDocumentBootstrap(editToken);
   useRealtime(editToken);
+  useAgentTools();
   useAutoSave();
   useShareSync();
   useClipboardPaste();
