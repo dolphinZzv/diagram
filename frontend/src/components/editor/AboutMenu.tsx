@@ -20,6 +20,7 @@ import { toast } from "@/lib/toast";
 import { describeError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { isAutoSaveEnabled, setAutoSaveEnabled } from "@/hooks/useAutoSave";
+import { setAgentEnabled, useAgentEnabled } from "@/lib/webmcp";
 
 interface VersionInfo {
   version: string;
@@ -42,6 +43,7 @@ export function AboutMenu() {
   const [autoSave, setAutoSave] = useState(isAutoSaveEnabled());
   const sketch = useUi((s) => s.sketch);
   const toggleSketch = useUi((s) => s.toggleSketch);
+  const agentEnabled = useAgentEnabled();
 
   useEffect(() => {
     fetch("/api/version")
@@ -197,6 +199,15 @@ export function AboutMenu() {
         >
           <Label className="text-xs text-muted-foreground">{t("command.sketch")}</Label>
           <Switch checked={sketch} onCheckedChange={() => toggleSketch()} />
+        </div>
+
+        <div
+          className="flex items-center justify-between gap-2 px-2 py-2"
+          onPointerDown={(e) => e.stopPropagation()}
+          title={t("about.agentHint")}
+        >
+          <Label className="text-xs text-muted-foreground">{t("about.agent")}</Label>
+          <Switch checked={agentEnabled} onCheckedChange={(v) => setAgentEnabled(v)} />
         </div>
 
         <DropdownMenuSeparator />

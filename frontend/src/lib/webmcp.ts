@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { agentTools, callAgentTool } from "./agentTools";
 
 /**
@@ -38,6 +39,51 @@ declare global {
 export function webMcpAvailable(): boolean {
   const nav = navigator as unknown as { modelContext?: ModelContext; modelContextTesting?: ModelContext };
   return !!(nav.modelContext || nav.modelContextTesting);
+}
+
+// ---------------------------------------------------------------------------
+// Opt-in gate: agent tools are OFF by default. A user must explicitly allow an
+// external agent to read/modify the current canvas.
+// ---------------------------------------------------------------------------
+const PREF_KEY = "diagram_agent_enabled";
+let agentEnabled = readPref();
+const prefListeners = new Set<(v: boolean) => void>();
+
+function readPref(): boolean {
+  try {
+    return localStorage.getItem(PREF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function isAgentEnabled(): boolean {
+  return agentEnabled;
+}
+
+export function setAgentEnabled(v: boolean): void {
+  if (agentEnabled === v) return;
+  agentEnabled = v;
+  try {
+    if (v) localStorage.setItem(PREF_KEY, "1");
+    else localStorage.removeItem(PREF_KEY);
+  } catch {
+    /* ignore */
+  }
+  for (const l of prefListeners) l(v);
+}
+
+/** Reactive boolean for the opt-in switch. */
+export function useAgentEnabled(): boolean {
+  const [v, setV] = useState(agentEnabled);
+  useEffect(() => {
+    prefListeners.add(setV);
+    setV(agentEnabled);
+    return () => {
+      prefListeners.delete(setV);
+    };
+  }, []);
+  return v;
 }
 
 export function installAgentTools(): () => void {

@@ -447,6 +447,8 @@ const zh: Dict = {
   "action.canvasTitle": "画布操作",
   "action.hint": "长按图形/空白处可打开此菜单",
   "about.autoSave": "自动保存",
+  "about.agent": "允许浏览器 Agent 操作",
+  "about.agentHint": "开启后，浏览器内的 agent（WebMCP / 扩展 / 控制台）可通过 window.diagramAgent 读取并修改当前画布。所有操作都进撤销栈，可随时撤销；关闭后立即停用。",
 
   "mindmap.child": "子主题",
   "mindmap.sibling": "同级主题",
@@ -1075,6 +1077,8 @@ const en: Dict = {
   "action.canvasTitle": "Canvas actions",
   "action.hint": "Long-press a shape or empty space to open this menu",
   "about.autoSave": "Auto-save",
+  "about.agent": "Allow browser agent",
+  "about.agentHint": "When on, an in-browser agent (WebMCP / extension / console) can read and modify the current canvas via window.diagramAgent. Every action is undoable; turning it off disables access immediately.",
 
   "mindmap.child": "Subtopic",
   "mindmap.sibling": "Sibling topic",

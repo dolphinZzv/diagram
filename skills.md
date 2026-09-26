@@ -190,7 +190,9 @@ Diagram 是一个流程图 / 架构图设计器，内置 **MCP server**。你可
 
 ## 9. 浏览器内 agent（WebMCP / window.diagramAgent）
 
-当网页编辑器打开时，它会把一组工具暴露给**浏览器内的 agent**，让 agent 直接操作当前画布（无需服务端、无需扩展）：
+**默认关闭**：需在编辑器 **设置（齿轮）→ 允许浏览器 Agent 操作** 打开后，工具才会注册；关闭后 `window.diagramAgent` 立即消失。这样外部 agent 不会在你不知情时改动画布。
+
+开启后，网页编辑器会把一组工具暴露给**浏览器内的 agent**，让 agent 直接操作当前画布（无需服务端、无需扩展）：
 
 - **WebMCP**：如果浏览器支持实验性的 `navigator.modelContext`，编辑器会自动注册这批工具。
 - **兜底通道**：始终暴露 `window.diagramAgent`，任何扩展 / 书签 / 控制台 / agent 都可调用：
