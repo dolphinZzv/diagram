@@ -58,3 +58,37 @@ describe("agent tools", () => {
     await expect(callAgentTool("does_not_exist")).rejects.toThrow();
   });
 });
+
+describe("diagram_compose", () => {
+  it("builds and auto-lays out a graph without coordinates", async () => {
+    const r = (await callAgentTool("diagram_compose", {
+      direction: "LR",
+      nodes: [
+        { id: "a", label: "A" },
+        { id: "b", label: "B", shape: "diamond" },
+        { id: "c", label: "C" },
+      ],
+      edges: [
+        { from: "a", to: "b" },
+        { from: "b", to: "c", lineStyle: "dashed" },
+      ],
+    })) as { nodes: number; edges: number };
+    expect(r.nodes).toBe(3);
+    expect(r.edges).toBe(2);
+
+    const nodes = useEditor.getState().nodes;
+    const x = Object.fromEntries(nodes.map((n) => [(n.data as { label: string }).label, n.position.x]));
+    expect(x.A).toBeLessThan(x.B);
+    expect(x.B).toBeLessThan(x.C);
+    // LR default handles
+    const e = useEditor.getState().edges[0];
+    expect(e.sourceHandle).toBe("r");
+    expect(e.targetHandle).toBe("l");
+  });
+
+  it("rejects edges referencing unknown nodes", async () => {
+    await expect(
+      callAgentTool("diagram_compose", { nodes: [{ id: "a", label: "A" }], edges: [{ from: "a", to: "x" }] })
+    ).rejects.toThrow();
+  });
+});

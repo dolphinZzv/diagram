@@ -259,6 +259,8 @@ func (s *mcpServer) callTool(name string, args map[string]any) (string, error) {
 		return s.toolDiagramPublish(args)
 	case "diagram_unpublish":
 		return s.toolDiagramUnpublish(args)
+	case "diagram_compose":
+		return s.toolDiagramCompose(args)
 	case "node_add":
 		return s.toolNodeAdd(args)
 	case "node_update":
@@ -350,6 +352,43 @@ func (s *mcpServer) toolDefs() []map[string]any {
 			"name":        "diagram_unpublish",
 			"description": "Remove the published snapshot (share falls back to the current data).",
 			"inputSchema": obj(map[string]any{"id": strProp("diagram id")}, "id"),
+		},
+		{
+			"name":        "diagram_compose",
+			"description": "Create a whole diagram from a declarative graph in ONE call. Describe nodes and edges by relationship; the server lays them out automatically, so you never compute x/y. Prefer this over many node_add/edge_add calls.",
+			"inputSchema": obj(map[string]any{
+				"name":        strProp("diagram name"),
+				"description": strProp("optional description"),
+				"direction":   strProp("layout direction: TB (top-to-bottom, default) or LR (left-to-right)"),
+				"nodes": map[string]any{
+					"type":        "array",
+					"description": "nodes; the `id` is your own local reference used by edges",
+					"items": obj(map[string]any{
+						"id":        strProp("local reference id (referenced by edges)"),
+						"label":     strProp("node text"),
+						"shape":     strProp("rect|rounded|ellipse|diamond|hexagon|triangle|parallelogram|cylinder|document|star|cloud|text"),
+						"fill":      strProp("fill color, e.g. #ffffff"),
+						"stroke":    strProp("border color"),
+						"textColor": strProp("text color"),
+						"width":     numProp("width"),
+						"height":    numProp("height"),
+					}),
+				},
+				"edges": map[string]any{
+					"type": "array",
+					"items": obj(map[string]any{
+						"from":         strProp("source node id (local reference)"),
+						"to":           strProp("target node id (local reference)"),
+						"label":        strProp("edge label"),
+						"color":        strProp("line color"),
+						"pathType":     strProp("bezier|straight|step|smoothstep"),
+						"arrowType":    strProp("arrowclosed|arrow|diamond|none"),
+						"lineStyle":    strProp("solid|dashed|dotted"),
+						"sourceHandle": strProp("optional handle override: t|r|b|l"),
+						"targetHandle": strProp("optional handle override: t|r|b|l"),
+					}, "from", "to"),
+				},
+			}, "name", "nodes"),
 		},
 		{
 			"name":        "node_add",
@@ -756,6 +795,162 @@ func (s *mcpServer) toolDiagramUnpublish(args map[string]any) (string, error) {
 		return "", err
 	}
 	return jsonText(map[string]any{"published": false})
+}
+
+// toolDiagramCompose builds a whole diagram from a declarative graph and lays
+// it out server-side, so agents never have to compute coordinates.
+func (s *mcpServer) toolDiagramCompose(args map[string]any) (string, error) {
+	name, err := requiredString(args, "name")
+	if err != nil {
+		return "", err
+	}
+	desc, _ := optionalString(args, "description")
+	direction, _ := optionalString(args, "direction")
+	if direction != "LR" {
+		direction = "TB"
+	}
+	rawNodes, _ := args["nodes"].([]any)
+	if len(rawNodes) == 0 {
+		return "", fmt.Errorf("nodes must be a non-empty array")
+	}
+	rawEdges, _ := args["edges"].([]any)
+
+	nodeIDByKey := map[string]string{}
+	doc := DiagramDoc{Nodes: []map[string]any{}, Edges: []map[string]any{}}
+	layoutNodes := make([]layoutNode, 0, len(rawNodes))
+
+	for i, raw := range rawNodes {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			return "", fmt.Errorf("nodes[%d] must be an object", i)
+		}
+		key, _ := optionalString(m, "id")
+		if key == "" {
+			key = fmt.Sprintf("n%d", i)
+		}
+		if _, dup := nodeIDByKey[key]; dup {
+			return "", fmt.Errorf("duplicate node id: %s", key)
+		}
+		shape, _ := optionalString(m, "shape")
+		if shape == "" {
+			shape = "rect"
+		}
+		w := numberArg(m, "width", 0)
+		h := numberArg(m, "height", 0)
+		if w <= 0 || h <= 0 {
+			dw, dh := shapeSize(shape)
+			if w <= 0 {
+				w = dw
+			}
+			if h <= 0 {
+				h = dh
+			}
+		}
+		label, _ := optionalString(m, "label")
+		fill, _ := optionalString(m, "fill")
+		stroke, _ := optionalString(m, "stroke")
+		textColor, _ := optionalString(m, "textColor")
+		if fill == "" {
+			fill = "#ffffff"
+		}
+		if stroke == "" {
+			stroke = "#475569"
+		}
+		if textColor == "" {
+			textColor = "#0f172a"
+		}
+		nodeID := "n_" + newID()
+		nodeIDByKey[key] = nodeID
+		doc.Nodes = append(doc.Nodes, map[string]any{
+			"id": nodeID, "type": "shape",
+			"position": map[string]any{"x": 0.0, "y": 0.0},
+			"data": map[string]any{
+				"shape": shape, "label": label, "fill": fill, "stroke": stroke,
+				"strokeWidth": 2.0, "rotation": 0.0, "width": w, "height": h,
+				"fontSize": 14.0, "textColor": textColor, "opacity": 1.0, "radius": 8.0,
+				"fontWeight": "normal", "fontStyle": "normal", "locked": false,
+			},
+			"style": map[string]any{"width": w, "height": h},
+		})
+		layoutNodes = append(layoutNodes, layoutNode{ID: nodeID, W: w, H: h})
+	}
+
+	layoutEdges := make([]layoutEdge, 0, len(rawEdges))
+	for i, raw := range rawEdges {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			return "", fmt.Errorf("edges[%d] must be an object", i)
+		}
+		from, _ := optionalString(m, "from")
+		to, _ := optionalString(m, "to")
+		src, ok1 := nodeIDByKey[from]
+		dst, ok2 := nodeIDByKey[to]
+		if !ok1 || !ok2 {
+			return "", fmt.Errorf("edges[%d]: from/to must reference a node id", i)
+		}
+		label, _ := optionalString(m, "label")
+		color, _ := optionalString(m, "color")
+		pathType, _ := optionalString(m, "pathType")
+		arrowType, _ := optionalString(m, "arrowType")
+		lineStyle, _ := optionalString(m, "lineStyle")
+		if color == "" {
+			color = "#475569"
+		}
+		if pathType == "" {
+			pathType = "bezier"
+		}
+		if arrowType == "" {
+			arrowType = "arrowclosed"
+		}
+		if lineStyle == "" {
+			lineStyle = "solid"
+		}
+		sourceHandle, targetHandle := "b", "t"
+		if direction == "LR" {
+			sourceHandle, targetHandle = "r", "l"
+		}
+		if v, _ := optionalString(m, "sourceHandle"); v != "" {
+			sourceHandle = v
+		}
+		if v, _ := optionalString(m, "targetHandle"); v != "" {
+			targetHandle = v
+		}
+		doc.Edges = append(doc.Edges, map[string]any{
+			"id": "e_" + newID(), "source": src, "target": dst, "type": "custom",
+			"sourceHandle": sourceHandle, "targetHandle": targetHandle,
+			"data": map[string]any{
+				"label": label, "color": color, "width": 2.0, "lineStyle": lineStyle,
+				"arrowType": arrowType, "startArrowType": "none", "pathType": pathType,
+				"labelRotation": 0.0, "animated": false, "points": []any{},
+			},
+		})
+		layoutEdges = append(layoutEdges, layoutEdge{Source: src, Target: dst})
+	}
+
+	positions := layoutLayered(layoutNodes, layoutEdges, direction)
+	for _, n := range doc.Nodes {
+		if p, ok := positions[asString(n["id"])]; ok {
+			n["position"] = map[string]any{"x": p[0], "y": p[1]}
+		}
+	}
+
+	data, err := json.Marshal(doc)
+	if err != nil {
+		return "", err
+	}
+	d := Diagram{
+		ID:          newUUID(),
+		Name:        name,
+		Description: desc,
+		Data:        data,
+		CreatedAt:   nowISO(),
+		UpdatedAt:   nowISO(),
+	}
+	if err := s.store.Create(d); err != nil {
+		return "", err
+	}
+	_, _ = s.store.CreateVersion(DiagramVersion{DiagramID: d.ID, Label: "创建", Origin: "create", Data: d.Data})
+	return jsonText(map[string]any{"id": d.ID, "name": d.Name, "nodes": len(doc.Nodes), "edges": len(doc.Edges)})
 }
 
 func (s *mcpServer) toolNodeAdd(args map[string]any) (string, error) {

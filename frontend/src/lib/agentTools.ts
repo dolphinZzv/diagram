@@ -1,6 +1,7 @@
 import type { Edge, Node } from "@xyflow/react";
 import { useEditor } from "./store";
-import { defaultNodeData, type EdgeData, type ShapeType } from "./types";
+import { defaultEdgeData, defaultNodeData, type EdgeData, type ShapeType } from "./types";
+import { layoutLayered, type LayoutDirection } from "./layout";
 import { uid } from "./id";
 import { toMermaid } from "./mermaid";
 import { TEMPLATES } from "./templates";
@@ -242,6 +243,109 @@ export const agentTools: AgentTool[] = [
     execute: () => {
       const s = useEditor.getState();
       return { mermaid: toMermaid(s.nodes, s.edges) };
+    },
+  },
+  {
+    name: "diagram_compose",
+    description:
+      "Replace the canvas with a diagram built from a declarative graph, auto-laid out. Describe nodes and edges by relationship (no coordinates needed).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        direction: { type: "string", enum: ["TB", "LR"] },
+        nodes: {
+          type: "array",
+          description: "nodes; `id` is your local reference used by edges",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              label: { type: "string" },
+              shape: { type: "string", enum: SHAPES },
+              fill: { type: "string" },
+              stroke: { type: "string" },
+              textColor: { type: "string" },
+              width: { type: "number" },
+              height: { type: "number" },
+            },
+          },
+        },
+        edges: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              from: { type: "string" },
+              to: { type: "string" },
+              label: { type: "string" },
+              color: { type: "string" },
+              pathType: { type: "string", enum: ["bezier", "straight", "step", "smoothstep"] },
+              arrowType: { type: "string", enum: ["arrowclosed", "arrow", "diamond", "none"] },
+              lineStyle: { type: "string", enum: ["solid", "dashed", "dotted"] },
+            },
+            required: ["from", "to"],
+          },
+        },
+      },
+      required: ["nodes"],
+    },
+    execute: (args) => {
+      const rawNodes = Array.isArray(args.nodes) ? (args.nodes as Record<string, unknown>[]) : [];
+      if (rawNodes.length === 0) throw new Error("nodes must be a non-empty array");
+      const rawEdges = Array.isArray(args.edges) ? (args.edges as Record<string, unknown>[]) : [];
+      const direction = (s(args, "direction") === "LR" ? "LR" : "TB") as LayoutDirection;
+
+      const idByKey = new Map<string, string>();
+      const nodes: Node[] = [];
+      rawNodes.forEach((m, i) => {
+        const key = s(m, "id") ?? `n${i}`;
+        const shape = (s(m, "shape") ?? "rect") as ShapeType;
+        const data = defaultNodeData(SHAPES.includes(shape) ? shape : "rect");
+        if (s(m, "label") !== undefined) data.label = s(m, "label")!;
+        for (const k of ["fill", "stroke", "textColor"] as const) {
+          const v = s(m, k);
+          if (v) data[k] = v;
+        }
+        for (const k of ["width", "height"] as const) {
+          const v = n(m, k);
+          if (v) data[k] = v;
+        }
+        const nodeId = uid("n_");
+        idByKey.set(key, nodeId);
+        nodes.push({
+          id: nodeId,
+          type: "shape",
+          position: { x: 0, y: 0 },
+          data,
+          style: { width: data.width, height: data.height },
+        });
+      });
+
+      const edges: Edge[] = [];
+      rawEdges.forEach((m, i) => {
+        const src = idByKey.get(s(m, "from") ?? "");
+        const dst = idByKey.get(s(m, "to") ?? "");
+        if (!src || !dst) throw new Error(`edges[${i}]: from/to must reference a node id`);
+        const data = { ...defaultEdgeData() };
+        if (s(m, "label")) data.label = s(m, "label")!;
+        if (s(m, "color")) data.color = s(m, "color")!;
+        if (s(m, "pathType")) data.pathType = s(m, "pathType") as EdgeData["pathType"];
+        if (s(m, "arrowType")) data.arrowType = s(m, "arrowType") as EdgeData["arrowType"];
+        if (s(m, "lineStyle")) data.lineStyle = s(m, "lineStyle") as EdgeData["lineStyle"];
+        edges.push({
+          id: uid("e_"),
+          source: src,
+          target: dst,
+          type: "custom",
+          sourceHandle: direction === "LR" ? "r" : "b",
+          targetHandle: direction === "LR" ? "l" : "t",
+          data,
+        });
+      });
+
+      const laid = layoutLayered(nodes, edges, direction);
+      useEditor.getState().loadDoc(laid, edges);
+      return { nodes: laid.length, edges: edges.length };
     },
   },
   {

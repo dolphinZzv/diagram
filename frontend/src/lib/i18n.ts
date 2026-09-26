@@ -623,6 +623,15 @@ const zh: Dict = {
   "subgraph.enter": "进入子图",
   "subgraph.target": "关联图纸",
   "subgraph.title": "子图",
+
+  // local file import (File API)
+  "file.openLocal": "打开本地文件…",
+  "file.importedDiagram": "已导入图纸",
+  "file.importedImage": "已添加图片",
+  "file.importedText": "已从文本导入",
+  "file.importFail": "导入失败",
+  "file.unsupported": "不支持的文件类型",
+  "file.dropHint": "松开以导入文件",
   "share.editSection": "可编辑分享",
   "share.editHint": "任何拿到此链接的人都可以打开并编辑这张图纸（修改会自动保存）。",
   "share.editEnable": "开启可编辑分享",
@@ -1254,6 +1263,15 @@ const en: Dict = {
   "subgraph.enter": "Open subgraph",
   "subgraph.target": "Linked diagram",
   "subgraph.title": "Subgraph",
+
+  // local file import (File API)
+  "file.openLocal": "Open local file…",
+  "file.importedDiagram": "Diagram imported",
+  "file.importedImage": "Image added",
+  "file.importedText": "Imported from text",
+  "file.importFail": "Import failed",
+  "file.unsupported": "Unsupported file type",
+  "file.dropHint": "Drop to import files",
   "share.editSection": "Editable sharing",
   "share.editHint": "Anyone with this link can open and edit this diagram (changes save automatically).",
   "share.editEnable": "Enable editable sharing",

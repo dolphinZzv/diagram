@@ -36,9 +36,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditor } from "@/lib/store";
-import { exportPNG, exportSVG, exportJSON, readJSONFile, exportMermaid, copyImageToClipboard } from "@/lib/exporter";
+import { exportPNG, exportSVG, exportJSON, exportMermaid, copyImageToClipboard } from "@/lib/exporter";
 import { toMermaid } from "@/lib/mermaid";
-import { parseDiagramFile, serializeDoc } from "@/lib/doc";
+import { serializeDoc } from "@/lib/doc";
 import { TEMPLATES } from "@/lib/templates";
 import { useReactFlow } from "@xyflow/react";
 import { toast } from "@/lib/toast";
@@ -48,6 +48,7 @@ import { useTheme } from "@/lib/theme";
 import { useUi } from "@/lib/ui";
 import { AboutMenu } from "./AboutMenu";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { useFileImport } from "@/hooks/useFileImport";
 import { confirmDialog } from "@/lib/dialog";
 import { describeError } from "@/lib/errors";
 import { useDiagramActions } from "@/hooks/useDiagramActions";
@@ -77,7 +78,8 @@ export function TopBar() {
   const past = useEditor((s) => s.past);
   const future = useEditor((s) => s.future);
 
-  const { getViewport, setViewport, fitView } = useReactFlow();
+  const { getViewport, fitView } = useReactFlow();
+  const { importFiles, openLocalFiles } = useFileImport();
   const { createDiagram } = useDiagramActions();
   const fileInput = useRef<HTMLInputElement>(null);
   const [openHistory, setOpenHistory] = useState(false);
@@ -144,25 +146,10 @@ export function TopBar() {
   );
 
   const onImport = useCallback(
-    async (file: File) => {
-      try {
-        const raw = await readJSONFile(file);
-        const doc = parseDiagramFile(raw);
-        loadDoc(doc.nodes, doc.edges);
-        setMeta({
-          id: null,
-          name: doc.name || file.name.replace(/\.json$/i, ""),
-          description: doc.description || "",
-          saved: false,
-        });
-        if (doc.viewport) setTimeout(() => setViewport(doc.viewport!), 30);
-        else setTimeout(() => fitView({ padding: 0.3 }), 30);
-        toast.success(t("topbar.importOk"), doc.name || file.name);
-      } catch (e) {
-        toast.error(t("topbar.importFail"), describeError(e));
-      }
+    async () => {
+      if (!(await openLocalFiles())) fileInput.current?.click();
     },
-    [loadDoc, setMeta, setViewport, fitView, t]
+    [openLocalFiles]
   );
 
   const onExportJSON = useCallback(() => {
@@ -322,7 +309,7 @@ export function TopBar() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => fileInput.current?.click()}>
+            <DropdownMenuItem onClick={() => void onImport()}>
               <FileJson className="h-4 w-4" /> {t("topbar.importFile")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => useUi.getState().setImportOpen(true)}>
@@ -495,11 +482,12 @@ export function TopBar() {
       <input
         ref={fileInput}
         type="file"
-        accept="application/json,.json"
+        multiple
+        accept=".json,.mmd,.mermaid,.puml,.plantuml,.txt,.md,image/*"
         className="hidden"
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onImport(f);
+          const files = Array.from(e.target.files ?? []);
+          if (files.length) void importFiles(files);
           e.target.value = "";
         }}
       />

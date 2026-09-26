@@ -34,6 +34,7 @@ import { EmptyState } from "./EmptyState";
 import { MobileZoomControls } from "./MobileZoomControls";
 import { RemoteCursors } from "./RemoteCursors";
 import { useSubgraphNav } from "@/hooks/useSubgraphNav";
+import { useFileImport } from "@/hooks/useFileImport";
 import type { SubgraphNodeData } from "@/lib/types";
 
 function nodeSize(n: Node): { w: number; h: number } {
@@ -73,6 +74,7 @@ export function Canvas() {
   const compact = useIsCompactLayout();
 
   const { enter: enterSubgraph } = useSubgraphNav();
+  const { importFiles } = useFileImport();
   const { screenToFlowPosition, getZoom } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -103,6 +105,13 @@ export function Canvas() {
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
+      // Local files dropped from the OS: render them on the canvas.
+      const files = Array.from(event.dataTransfer.files ?? []);
+      if (files.length) {
+        const at = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+        void importFiles(files, at);
+        return;
+      }
       const kind = event.dataTransfer.getData("application/diagram-kind");
       const value = event.dataTransfer.getData("application/diagram-value");
       if (!kind || !value) return;
@@ -147,7 +156,7 @@ export function Canvas() {
         insertFragment(def.nodes, def.edges, { x: position.x - b.minX, y: position.y - b.minY });
       }
     },
-    [addNode, addShapeNode, insertFragment, screenToFlowPosition, t]
+    [addNode, addShapeNode, insertFragment, screenToFlowPosition, importFiles, t]
   );
 
   const onSelectionChange = useCallback(

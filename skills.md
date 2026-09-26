@@ -33,12 +33,14 @@ Diagram 是一个流程图 / 架构图设计器，内置 **MCP server**。你可
 
 ## 2. 标准工作流
 
-1. `diagram_list` 看是否已有同名图纸（避免建重复）。
-2. `diagram_create { name }` → 得到 `id`（后续所有操作都要带这个 `id`）。
-3. 用 `node_add` 逐个添加节点，**记下返回的 `nodeId`**。
-4. 用 `edge_add` 连接已知的两端节点。
-5. `diagram_get { id }` 校验 `nodes`/`edges` 数量是否正确。
-6. 按需：`diagram_publish` 发布、`share_enable` 出分享链接、或直接汇报 `id` 让用户在网页打开。
+> **首选 `diagram_compose`**：一次调用把整张图建好并**自动布局**，你不用算坐标。只有“修改已有图/逐块微调”才用 `node_add` / `edge_add`。
+
+1. `diagram_compose { name, direction?, nodes:[{id,label,shape?}], edges:[{from,to,label?}] }`
+   —— 节点的 `id` 只是**本地引用**，`edges` 用 `from`/`to` 指向它们；服务端自动分层布局（TB 或 LR）。
+2. 使用返回的 `id`（后续操作都要带）。
+3. 需要微调时再 `node_update` / `node_add` / `edge_add`。
+4. `diagram_get { id }` 校验节点/连线数量。
+5. 按需 `diagram_publish` 发布、`share_enable` 出分享链接，或直接汇报 `id` 让用户在网页打开。
 
 `id` 是图纸标识；`nodeId`/`edgeId` 是元素标识。**不要凭空编造 id**，要用返回值。
 
@@ -52,6 +54,7 @@ Diagram 是一个流程图 / 架构图设计器，内置 **MCP server**。你可
 | `diagram_list` | – |
 | `diagram_get` | `id` |
 | `diagram_create` | `name`, `description?` |
+| `diagram_compose` ⭐ | `name`, `direction?`(`TB`\|`LR`), `nodes[]`(`id/label/shape/fill/stroke/textColor/width/height`), `edges[]`(`from/to/label/color/pathType/arrowType/lineStyle`) —— **自动布局，一次建好整图** |
 | `diagram_update` | `id`, `data`（整体替换 `{nodes,edges}`） |
 | `diagram_delete` | `id` |
 | `diagram_publish` / `diagram_unpublish` | `id` |
@@ -206,6 +209,7 @@ Diagram 是一个流程图 / 架构图设计器，内置 **MCP server**。你可
 
 | 工具 | 说明 |
 | --- | --- |
+| `diagram_compose` | **一次建图 + 自动布局**：`{direction?, nodes:[{id,label,shape?}], edges:[{from,to,label?}]}` |
 | `diagram_get_state` | 读取当前图纸（名称 / 节点 / 连线 / 选中），**先调它拿 id** |
 | `diagram_add_node` | 加节点：`shape` `label` `x` `y` `fill` `stroke` `textColor` `width` `height` |
 | `diagram_update_node` | 改节点：`nodeId` + `patch` |
