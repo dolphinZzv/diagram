@@ -39,6 +39,7 @@ export function PresentationBar() {
           variant="ghost"
           size="icon"
           className="h-9 w-9 rounded-full"
+          aria-label={t("present.prev")}
           onClick={() => {
             prev();
             focus(presentation.order[Math.max(presentation.index - 1, 0)]);
@@ -54,6 +55,7 @@ export function PresentationBar() {
           variant="ghost"
           size="icon"
           className="h-9 w-9 rounded-full"
+          aria-label={t("present.next")}
           onClick={() => {
             next();
             focus(presentation.order[Math.min(presentation.index + 1, total - 1)]);

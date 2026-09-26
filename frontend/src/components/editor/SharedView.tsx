@@ -4,6 +4,7 @@ import {
   ReactFlowProvider,
   Background,
   BackgroundVariant,
+  ConnectionMode,
   Controls,
   type Edge,
   type Node,
@@ -68,6 +69,7 @@ function Viewer({ doc }: { doc: SharedDiagram }) {
           edges={edges}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          connectionMode={ConnectionMode.Loose}
           fitView
           fitViewOptions={{ padding: 0.25 }}
           nodesDraggable={false}

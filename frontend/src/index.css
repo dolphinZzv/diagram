@@ -65,6 +65,11 @@
 .react-flow__node {
   font-size: 13px;
 }
+/* Keep resize grips/lines above the (transformed) shape content so the whole
+   grip is grabbable, including the half that overlaps the shape. */
+.react-flow__resize-control {
+  z-index: 10;
+}
 .react-flow__handle {
   width: 10px;
   height: 10px;
@@ -124,16 +129,23 @@ button,
   touch-action: manipulation;
 }
 
-/* Larger touch targets for node handles / resize grips on touch devices */
+/* Larger touch targets for connection handles / resize grips on touch devices */
 @media (pointer: coarse) {
   .react-flow__handle {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
   }
+  /* The visible grip stays small, but the tappable area is expanded to ~34px
+     with a transparent pseudo-element. `!important` is required to beat the
+     Tailwind size classes passed through handleClassName. */
   .react-flow__resize-control.handle {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
+    width: 12px !important;
+    height: 12px !important;
+  }
+  .react-flow__resize-control.handle::after {
+    content: "";
+    position: absolute;
+    inset: -11px;
   }
 }
 
@@ -142,13 +154,32 @@ button,
   .react-flow__minimap {
     display: none;
   }
+  /* Replaced by the larger, thumb-friendly MobileZoomControls bar. */
   .react-flow__controls {
-    bottom: 5.5rem;
+    display: none;
   }
 }
 
-/* Read-only share view: hide editing affordances */
-.readonly-canvas .react-flow__handle,
+/* Enlarge the default zoom buttons on touch devices (they ship at 26px). */
+@media (pointer: coarse) {
+  .react-flow__controls-button {
+    width: 40px;
+    height: 40px;
+  }
+  .react-flow__controls-button svg {
+    max-width: 20px;
+    max-height: 20px;
+  }
+}
+
+/* Read-only share view: hide editing affordances. Handles MUST stay in the
+   layout (React Flow measures their geometry to route edges) - make them
+   invisible and non-interactive instead of display:none, otherwise every edge
+   collapses to a zero-length path and the lines disappear. */
+.readonly-canvas .react-flow__handle {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
 .readonly-canvas .react-flow__resize-control {
   display: none !important;
 }

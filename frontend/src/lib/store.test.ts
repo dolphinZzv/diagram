@@ -288,3 +288,40 @@ describe("insertFragment", () => {
     expect(useEditor.getState().nodes).toHaveLength(0);
   });
 });
+
+describe("history coalescing", () => {
+  // Start from a clean, un-coalesced history state regardless of test order.
+  function fresh(key: string) {
+    useEditor.setState({ nodes: [mkNode("a", 0, 0)], edges: [], selectedIds: [], past: [], future: [] });
+    useEditor.getState().pushHistory(key);
+    useEditor.setState({ past: [] });
+  }
+
+  it("merges rapid edits to the same field into a single undo step", () => {
+    fresh("coalesce-setup-1");
+    const s = useEditor.getState();
+    s.updateNodeData("a", { label: "h" });
+    s.updateNodeData("a", { label: "he" });
+    s.updateNodeData("a", { label: "hel" });
+    expect(useEditor.getState().past).toHaveLength(1);
+    useEditor.getState().undo();
+    expect((useEditor.getState().nodes[0].data as ShapeNodeData).label).toBe("a");
+  });
+
+  it("starts a new undo step when a different field changes", () => {
+    fresh("coalesce-setup-2");
+    const s = useEditor.getState();
+    s.updateNodeData("a", { label: "one" });
+    s.updateNodeData("a", { fill: "#123456" });
+    expect(useEditor.getState().past).toHaveLength(2);
+  });
+
+  it("does not coalesce consecutive multi-node patches of different selections", () => {
+    fresh("coalesce-setup-3");
+    useEditor.setState({ nodes: [mkNode("a", 0, 0), mkNode("b", 100, 0)] });
+    const s = useEditor.getState();
+    s.updateManyNodes(["a"], { fill: "#111111" });
+    s.updateManyNodes(["a", "b"], { fill: "#222222" });
+    expect(useEditor.getState().past).toHaveLength(2);
+  });
+});

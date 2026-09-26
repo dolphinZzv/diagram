@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, useCallback, useEffect, useRef, useState } from "react";
 import {
   Download,
   FileJson,
@@ -16,8 +16,6 @@ import {
   History,
   Share2,
   MoreHorizontal,
-  Sun,
-  Moon,
   Keyboard,
   FileCode2,
   Search,
@@ -48,17 +46,25 @@ import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useUi } from "@/lib/ui";
-import { OpenDialog } from "./OpenDialog";
-import { VersionHistory } from "./VersionHistory";
-import { ShareDialog } from "./ShareDialog";
 import { AboutMenu } from "./AboutMenu";
 import { useShortcuts } from "@/hooks/useShortcuts";
+import { confirmDialog } from "@/lib/dialog";
+import { describeError } from "@/lib/errors";
+import { useDiagramActions } from "@/hooks/useDiagramActions";
+import { PeerAvatars } from "./PeerAvatars";
+import { usePeers } from "@/lib/peers";
+import { useDocuments } from "@/lib/documents";
+import { LazyDialog } from "@/components/LazyDialog";
 import { cn } from "@/lib/utils";
+
+const VersionHistory = lazy(() =>
+  import("./VersionHistory").then((m) => ({ default: m.VersionHistory }))
+);
+const ShareDialog = lazy(() => import("./ShareDialog").then((m) => ({ default: m.ShareDialog })));
 
 export function TopBar() {
   const t = useT();
   const theme = useTheme((s) => s.theme);
-  const toggleTheme = useTheme((s) => s.toggle);
 
   const meta = useEditor((s) => s.meta);
   const setMeta = useEditor((s) => s.setMeta);
@@ -72,10 +78,13 @@ export function TopBar() {
   const future = useEditor((s) => s.future);
 
   const { getViewport, setViewport, fitView } = useReactFlow();
+  const { createDiagram } = useDiagramActions();
   const fileInput = useRef<HTMLInputElement>(null);
-  const [openOpen, setOpenOpen] = useState(false);
   const [openHistory, setOpenHistory] = useState(false);
   const [openShare, setOpenShare] = useState(false);
+  const documentsPanel = useUi((s) => s.documentsPanel);
+  const setDocumentsPanel = useUi((s) => s.setDocumentsPanel);
+  const setDocumentsDrawer = useUi((s) => s.setDocumentsDrawer);
 
   const buildDoc = useCallback(
     () => serializeDoc(nodes, edges, meta.name, meta.description, getViewport()),
@@ -87,7 +96,19 @@ export function TopBar() {
       setMeta({ saving: true });
       try {
         const doc = buildDoc();
-        if (meta.id && !forceNew) {
+        if (meta.realtime) {
+          // Realtime rooms persist server-side; nothing to push explicitly.
+          setMeta({ saved: true, saving: false });
+          toast.success(t("topbar.savedToast"), meta.name);
+        } else if (meta.editToken) {
+          await api.updateEditable(meta.editToken, {
+            name: meta.name,
+            description: meta.description,
+            data: doc,
+          });
+          setMeta({ saved: true, saving: false });
+          toast.success(t("topbar.savedToast"), meta.name);
+        } else if (meta.id && !forceNew) {
           await api.update(meta.id, { name: meta.name, description: meta.description, data: doc });
           setMeta({ saved: true, saving: false });
           toast.success(t("topbar.savedToast"), meta.name);
@@ -96,25 +117,23 @@ export function TopBar() {
           setMeta({ id: created.id, saved: true, saving: false });
           toast.success(t("topbar.createdToast"), meta.name);
         }
+        if (!meta.editToken) void useDocuments.getState().refresh();
       } catch (e) {
         setMeta({ saving: false });
-        toast.error(t("topbar.saveFail"), String(e));
+        toast.error(t("topbar.saveFail"), describeError(e));
       }
     },
-    [buildDoc, meta.id, meta.name, meta.description, setMeta, t]
+    [buildDoc, meta.id, meta.name, meta.description, meta.editToken, meta.realtime, setMeta, t]
   );
 
-  const onNew = useCallback(() => {
-    if (!meta.saved && !confirm(t("topbar.confirmNew"))) return;
-    loadDoc([], []);
-    setMeta({ id: null, name: t("topbar.untitled"), description: "", saved: true });
-    setTimeout(() => fitView({ padding: 0.3 }), 30);
-  }, [meta.saved, loadDoc, setMeta, fitView, t]);
+  const onNew = useCallback(async () => {
+    await createDiagram();
+  }, [createDiagram]);
 
-  const onApplyTemplate = useCallback(    (id: string) => {
+  const onApplyTemplate = useCallback(async (id: string) => {
       const tpl = TEMPLATES.find((x) => x.id === id);
       if (!tpl) return;
-      if (!meta.saved && !confirm(t("topbar.confirmTemplate"))) return;
+      if (!meta.saved && !(await confirmDialog({ title: t("topbar.confirmTemplate"), destructive: true }))) return;
       const { nodes: tn, edges: te } = tpl.build();
       loadDoc(tn, te);
       setMeta({ id: null, name: t(`template.${tpl.id}.name`), description: t(`template.${tpl.id}.desc`), saved: false });
@@ -140,7 +159,7 @@ export function TopBar() {
         else setTimeout(() => fitView({ padding: 0.3 }), 30);
         toast.success(t("topbar.importOk"), doc.name || file.name);
       } catch (e) {
-        toast.error(t("topbar.importFail"), String(e));
+        toast.error(t("topbar.importFail"), describeError(e));
       }
     },
     [loadDoc, setMeta, setViewport, fitView, t]
@@ -159,14 +178,14 @@ export function TopBar() {
         else exportSVG(nodes, edges, name, theme);
         toast.success(t("topbar.exportedImage", { format: format.toUpperCase() }));
       } catch (e) {
-        toast.error(t("topbar.exportFail"), String(e));
+        toast.error(t("topbar.exportFail"), describeError(e));
       }
     },
     [nodes, edges, meta.name, t, theme]
   );
 
-  const onClear = useCallback(() => {
-    if (!confirm(t("topbar.confirmClear"))) return;
+  const onClear = useCallback(async () => {
+    if (!(await confirmDialog({ title: t("topbar.confirmClear"), destructive: true }))) return;
     clearAll();
     toast.info(t("topbar.cleared"));
   }, [clearAll, t]);
@@ -188,6 +207,9 @@ export function TopBar() {
     />
   );
 
+  const isSharedEdit = !!meta.editToken;
+  const collabStatus = usePeers((s) => s.status);
+
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 sm:gap-3">
       <div className="flex shrink-0 items-center gap-2">
@@ -205,12 +227,26 @@ export function TopBar() {
         {statusDot}
         {meta.saving ? t("topbar.saving") : meta.saved ? t("topbar.saved") : t("topbar.unsaved")}
       </span>
+      {isSharedEdit ? (
+        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+          {t("collab.badge")}
+        </span>
+      ) : null}
+      {meta.realtime && collabStatus !== "open" ? (
+        <span
+          className="hidden shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 sm:inline"
+          title={t("collab.offlineHint")}
+        >
+          {collabStatus === "connecting" ? t("collab.connecting") : t("collab.offline")}
+        </span>
+      ) : null}
+      <PeerAvatars />
 
       {/* ---- Desktop toolbar ---- */}
       <div className="ml-auto hidden items-center gap-1 md:flex">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={past.length === 0} onClick={undo}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("topbar.undo")} disabled={past.length === 0} onClick={undo}>
               <Undo2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -218,7 +254,7 @@ export function TopBar() {
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" disabled={future.length === 0} onClick={redo}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("topbar.redo")} disabled={future.length === 0} onClick={redo}>
               <Redo2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -227,10 +263,18 @@ export function TopBar() {
 
         <div className="mx-1 h-6 w-px bg-border" />
 
+        {!isSharedEdit ? (
+          <>
         <Button variant="ghost" size="sm" className="h-8" onClick={onNew}>
           <FilePlus2 className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.new")}</span>
         </Button>
-        <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenOpen(true)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8"
+          onClick={() => setDocumentsPanel(!documentsPanel)}
+          title={t("docs.toggle")}
+        >
           <FolderOpen className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.open")}</span>
         </Button>
         <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenHistory(true)}>
@@ -260,13 +304,17 @@ export function TopBar() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+          </>
+        ) : null}
 
         <Button variant="ghost" size="sm" className="h-8" onClick={() => onSave(false)}>
           <Save className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.save")}</span>
         </Button>
-        <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenShare(true)}>
-          <Share2 className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.share")}</span>
-        </Button>
+        {!isSharedEdit ? (
+          <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpenShare(true)}>
+            <Share2 className="h-4 w-4" /> <span className="hidden lg:inline">{t("topbar.share")}</span>
+          </Button>
+        ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8">
@@ -328,6 +376,7 @@ export function TopBar() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
+              aria-label={t("command.title")}
               onClick={() => useUi.getState().setCommandOpen(true)}
             >
               <Search className="h-4 w-4" />
@@ -338,16 +387,7 @@ export function TopBar() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme} title={t("theme.toggle")}>
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("theme.toggle")}</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={onClear}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label={t("topbar.clear")} onClick={onClear}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -360,15 +400,15 @@ export function TopBar() {
       {/* ---- Mobile / tablet toolbar: primary actions + overflow ---- */}
       <div className="ml-auto flex items-center gap-1 md:hidden">
         {statusDot}
-        <Button variant="ghost" size="icon" className="h-9 w-9" disabled={past.length === 0} onClick={undo}>
+        <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={t("topbar.undo")} disabled={past.length === 0} onClick={undo}>
           <Undo2 className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => onSave(false)}>
+        <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={t("topbar.save")} onClick={() => onSave(false)}>
           <Save className="h-4 w-4" />
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="icon" className="h-9 w-9">
+            <Button variant="outline" size="icon" className="h-9 w-9" aria-label={t("toolbar.more")}>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -380,10 +420,12 @@ export function TopBar() {
               <Redo2 className="h-4 w-4" /> {t("topbar.redo")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {!isSharedEdit ? (
+              <>
             <DropdownMenuItem onClick={onNew}>
               <FilePlus2 className="h-4 w-4" /> {t("topbar.new")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setOpenOpen(true)}>
+            <DropdownMenuItem onClick={() => setDocumentsDrawer(true)}>
               <FolderOpen className="h-4 w-4" /> {t("topbar.open")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setOpenHistory(true)}>
@@ -415,6 +457,8 @@ export function TopBar() {
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+              </>
+            ) : null}
 
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
@@ -440,9 +484,6 @@ export function TopBar() {
             <DropdownMenuItem onClick={() => useUi.getState().setShortcutsOpen(true)}>
               <Keyboard className="h-4 w-4" /> {t("shortcuts.menu")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={toggleTheme}>
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />} {t("theme.toggle")}
-            </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive" onClick={onClear}>
               <Trash2 className="h-4 w-4" /> {t("topbar.clear")}
             </DropdownMenuItem>
@@ -463,9 +504,12 @@ export function TopBar() {
         }}
       />
 
-      <OpenDialog open={openOpen} onOpenChange={setOpenOpen} />
-      <VersionHistory open={openHistory} onOpenChange={setOpenHistory} />
-      <ShareDialog open={openShare} onOpenChange={setOpenShare} />
+      <LazyDialog open={openHistory}>
+        <VersionHistory open={openHistory} onOpenChange={setOpenHistory} />
+      </LazyDialog>
+      <LazyDialog open={openShare}>
+        <ShareDialog open={openShare} onOpenChange={setOpenShare} />
+      </LazyDialog>
     </header>
   );
 }

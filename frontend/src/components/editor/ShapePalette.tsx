@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import { useReactFlow, type Node } from "@xyflow/react";
-import { MousePointerClick, Package, Settings2 } from "lucide-react";
+import { ChevronLeft, LayoutGrid, MousePointerClick, Package, Settings2 } from "lucide-react";
 import { Shape } from "./Shape";
 import { Separator } from "@/components/ui/separator";
 import { useEditor } from "@/lib/store";
@@ -96,7 +96,10 @@ function useViewportCenter() {
   };
 }
 
-export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
+export function ShapePalette({
+  onAdded,
+  onCollapse,
+}: { onAdded?: () => void; onCollapse?: () => void } = {}) {
   const t = useT();
   const center = useViewportCenter();
   const addShapeNode = useEditor((s) => s.addShapeNode);
@@ -181,6 +184,21 @@ export function ShapePalette({ onAdded }: { onAdded?: () => void } = {}) {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
+      {onCollapse ? (
+        <div className="flex h-8 shrink-0 items-center gap-1.5 border-b px-3">
+          <LayoutGrid className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-semibold">{t("palette.panelTitle")}</span>
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label={t("panel.collapse")}
+            title={t("panel.collapse")}
+            className="ml-auto flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
       <div className="flex items-center gap-1.5 border-b bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
         <MousePointerClick className="h-3.5 w-3.5 shrink-0" />
         <span>{t("palette.hint")}</span>

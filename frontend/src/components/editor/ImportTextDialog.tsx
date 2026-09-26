@@ -17,6 +17,7 @@ import { useT } from "@/lib/i18n";
 import { parseDiagramText } from "@/lib/mermaidImport";
 import { layoutLayered } from "@/lib/layout";
 import { toast } from "@/lib/toast";
+import { describeError } from "@/lib/errors";
 
 const SAMPLE = `flowchart TD
   A[开始] --> B{判断}
@@ -46,7 +47,7 @@ export function ImportTextDialog() {
       setTimeout(() => fitView({ padding: 0.25 }), 40);
       toast.success(t("import.ok"), `${laid.length} nodes / ${edges.length} edges`);
     } catch (e) {
-      toast.error(t("import.fail"), String(e));
+      toast.error(t("import.fail"), describeError(e));
     }
   };
 

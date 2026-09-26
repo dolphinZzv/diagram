@@ -29,6 +29,11 @@ export interface SharedDiagram {
   updatedAt: string;
 }
 
+/** An editable-share payload also carries the diagram id (for reference only). */
+export interface EditableDiagram extends SharedDiagram {
+  id: string;
+}
+
 export interface ShareState {
   enabled: boolean;
   token: string;
@@ -51,6 +56,16 @@ export interface ServerComponent {
 }
 
 const base = "/api";
+
+/** Error carrying the HTTP status so callers can show friendly messages. */
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
 
 /** Token is stored in localStorage and sent as a Bearer header when the
  * server was started with DIAGRAM_TOKEN. */
@@ -83,7 +98,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ""}`);
+    throw new ApiError(res.status, text || res.statusText);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -132,6 +147,14 @@ export const api = {
   disableShare: (id: string) => req<ShareState>(`/diagrams/${id}/share`, { method: "DELETE" }),
   getShared: (token: string) => req<SharedDiagram>(`/share/${token}`),
 
+  // ---- editable share (write access via a per-diagram token) ----
+  getEditShare: (id: string) => req<ShareState>(`/diagrams/${id}/edit`),
+  enableEditShare: (id: string) => req<ShareState>(`/diagrams/${id}/edit`, { method: "POST" }),
+  disableEditShare: (id: string) => req<ShareState>(`/diagrams/${id}/edit`, { method: "DELETE" }),
+  getEditable: (token: string) => req<EditableDiagram>(`/edit/${token}`),
+  updateEditable: (token: string, body: { name: string; description?: string; data: unknown }) =>
+    req<DiagramRecord>(`/edit/${token}`, { method: "PUT", body: JSON.stringify(body) }),
+
   // ---- draft / publish ----
   getPublish: (id: string) => req<PublishState>(`/diagrams/${id}/publish`),
   publish: (id: string) =>
@@ -148,7 +171,7 @@ export const api = {
       },
       body: blob,
     });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
     return (await res.json()) as { format: string; bytes: number };
   },
 };

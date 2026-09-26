@@ -30,6 +30,18 @@ func newID() string {
 	return hex.EncodeToString(b)
 }
 
+// newUUID returns an RFC 4122 version 4 UUID. Diagrams are identified by a
+// UUID so their id is globally unique and recognisable across systems.
+func newUUID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return newID()
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+
 // nowISO returns a fixed-width RFC3339 UTC timestamp with nanosecond
 // precision. Fixed width matters because SQLite stores these as TEXT and
 // orders them lexicographically.
@@ -145,7 +157,7 @@ func main() {
 // main so tests can exercise the full HTTP surface with httptest.
 func newRouter(store *Store) http.Handler {
 	mux := http.NewServeMux()
-	api := &API{store: store}
+	api := &API{store: store, ws: newWSHub(store)}
 
 	// Public endpoints (no auth): health, version, update check.
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
@@ -159,6 +171,11 @@ func newRouter(store *Store) http.Handler {
 	})
 	// Public read-only share endpoint.
 	mux.HandleFunc("GET /api/share/{token}", api.PublicShare)
+	// Public editable-share endpoints (read + write one diagram via a token).
+	mux.HandleFunc("GET /api/edit/{token}", api.PublicEditGet)
+	mux.HandleFunc("PUT /api/edit/{token}", api.PublicEditPut)
+	// Realtime collaboration (auth via an editable-share token).
+	mux.HandleFunc("GET /api/ws", api.WebSocket)
 
 	// Protected endpoints: diagram CRUD.
 	protected := http.NewServeMux()
@@ -180,6 +197,11 @@ func newRouter(store *Store) http.Handler {
 	protected.HandleFunc("POST /api/diagrams/{id}/share", api.EnableShare)
 	protected.HandleFunc("DELETE /api/diagrams/{id}/share", api.DisableShare)
 	protected.HandleFunc("PUT /api/diagrams/{id}/share/image", api.UploadShareImage)
+
+	// Editable share (write access via a per-diagram token).
+	protected.HandleFunc("GET /api/diagrams/{id}/edit", api.GetEditShare)
+	protected.HandleFunc("POST /api/diagrams/{id}/edit", api.EnableEditShare)
+	protected.HandleFunc("DELETE /api/diagrams/{id}/edit", api.DisableEditShare)
 
 	// Draft / publish workflow.
 	protected.HandleFunc("GET /api/diagrams/{id}/publish", api.GetPublish)

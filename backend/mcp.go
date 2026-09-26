@@ -682,7 +682,7 @@ func (s *mcpServer) toolDiagramCreate(args map[string]any) (string, error) {
 	desc, _ := optionalString(args, "description")
 	doc, _ := json.Marshal(DiagramDoc{Nodes: []map[string]any{}, Edges: []map[string]any{}})
 	d := Diagram{
-		ID:          newID(),
+		ID:          newUUID(),
 		Name:        name,
 		Description: desc,
 		Data:        doc,

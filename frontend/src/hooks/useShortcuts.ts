@@ -26,6 +26,15 @@ export function useShortcuts(onSave: () => void) {
       // While typing, let the browser handle everything else.
       if (editing) return;
 
+      // While a modal dialog / sheet is open, let it own the keyboard so
+      // Delete / Backspace / arrows don't edit the canvas behind it.
+      if (
+        document.querySelector(
+          '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+        )
+      )
+        return;
+
       // Don't hijack keys while a dialog control has focus.
       const active = document.activeElement as HTMLElement | null;
       const formFocused =

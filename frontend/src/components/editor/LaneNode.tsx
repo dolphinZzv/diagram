@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { NodeResizer, type Node, type NodeProps } from "@xyflow/react";
 import { useEditor } from "@/lib/store";
 import { useT } from "@/lib/i18n";
@@ -9,6 +9,15 @@ function LaneNodeComponent({ id, data, selected }: NodeProps<LaneNodeType>) {
   const setNodeDimensions = useEditor((s) => s.setNodeDimensions);
   const t = useT();
 
+  // Keep a stable reference so React Flow does not rebuild the resizer on every
+  // render (which broke continuous touch resizing on mobile).
+  const onResizeEnd = useCallback(
+    (_event: unknown, params: { width: number; height: number }) => {
+      setNodeDimensions(id, Math.round(params.width), Math.round(params.height));
+    },
+    [id, setNodeDimensions]
+  );
+
   return (
     <div className="relative h-full w-full">
       <NodeResizer
@@ -17,9 +26,7 @@ function LaneNodeComponent({ id, data, selected }: NodeProps<LaneNodeType>) {
         isVisible={selected}
         lineClassName="!border-primary"
         handleClassName="!h-2.5 !w-2.5 !rounded-sm !border-primary !bg-background"
-        onResizeEnd={(_e, params) => {
-          setNodeDimensions(id, Math.round(params.width), Math.round(params.height));
-        }}
+        onResizeEnd={onResizeEnd}
       />
       <div className="pointer-events-none h-full w-full overflow-hidden rounded-lg border-2 border-slate-300 bg-slate-100/30 dark:border-slate-600 dark:bg-slate-800/20" />
       <div className="pointer-events-none absolute inset-y-0 left-0 flex w-9 items-center justify-center rounded-l-lg bg-slate-200/70 dark:bg-slate-700/50">

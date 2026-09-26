@@ -23,6 +23,8 @@ import {
 } from "@/lib/components";
 import { readJSONFile } from "@/lib/exporter";
 import { toast } from "@/lib/toast";
+import { confirmDialog, promptDialog } from "@/lib/dialog";
+import { describeError } from "@/lib/errors";
 
 function download(text: string) {
   const blob = new Blob([text], { type: "application/json" });
@@ -79,18 +81,20 @@ export function ComponentLibraryDialog() {
     toast.success(t("comp.inserted"), component.name);
   };
 
-  const onRename = (c: ComponentDef) => {
-    const name = prompt(t("comp.name"), c.name);
+  const onRename = async (c: ComponentDef) => {
+    const name = await promptDialog({ title: t("comp.name"), defaultValue: c.name });
     if (name && name.trim()) update(c.id, { name: name.trim() });
   };
 
-  const onCategory = (c: ComponentDef) => {
-    const category = prompt(t("comp.category"), c.category);
+  const onCategory = async (c: ComponentDef) => {
+    const category = await promptDialog({ title: t("comp.category"), defaultValue: c.category });
     if (category && category.trim()) update(c.id, { category: category.trim() });
   };
 
-  const onDelete = (c: ComponentDef) => {
-    if (confirm(t("comp.confirmDelete", { name: c.name }))) remove(c.id);
+  const onDelete = async (c: ComponentDef) => {
+    if (await confirmDialog({ title: t("comp.confirmDelete", { name: c.name }), destructive: true })) {
+      remove(c.id);
+    }
   };
 
   const onImport = async (file: File) => {
@@ -102,7 +106,7 @@ export function ComponentLibraryDialog() {
       replaceAll([...components, ...list.filter((c) => !existing.has(c.id))]);
       toast.success(t("comp.imported"), String(list.length));
     } catch (e) {
-      toast.error(t("comp.importFail"), String(e));
+      toast.error(t("comp.importFail"), describeError(e));
     }
   };
 
@@ -198,13 +202,13 @@ export function ComponentLibraryDialog() {
                           <Button variant="outline" size="sm" className="h-8" onClick={() => addAtCenter(c)}>
                             {t("comp.insert")}
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("comp.rename")} onClick={() => onRename(c)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("comp.rename")} aria-label={t("comp.rename")} onClick={() => onRename(c)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("comp.changeCategory")} onClick={() => onCategory(c)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title={t("comp.changeCategory")} aria-label={t("comp.changeCategory")} onClick={() => onCategory(c)}>
                             <Package className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title={t("ctx.delete")} onClick={() => onDelete(c)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title={t("ctx.delete")} aria-label={t("ctx.delete")} onClick={() => onDelete(c)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>

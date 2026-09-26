@@ -46,6 +46,7 @@ func NewStore(path string) (*Store, error) {
 			description TEXT NOT NULL DEFAULT '',
 			data        TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
 			share_token TEXT NOT NULL DEFAULT '',
+			edit_token  TEXT NOT NULL DEFAULT '',
 			published_data TEXT NOT NULL DEFAULT '',
 			published_at   TEXT NOT NULL DEFAULT '',
 			created_at  TEXT NOT NULL,
@@ -104,6 +105,13 @@ func NewStore(path string) (*Store, error) {
 	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_diagrams_share ON diagrams(share_token);`); err != nil {
 		return nil, err
 	}
+	// Editable-share token (grants write access to a single diagram).
+	if err := ensureColumn(db, "diagrams", "edit_token", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_diagrams_edit ON diagrams(edit_token);`); err != nil {
+		return nil, err
+	}
 	return &Store{db: db}, nil
 }
 
@@ -139,6 +147,18 @@ func ensureColumn(db *sql.DB, table, column, ddl string) error {
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+// SaveDocData updates just the drawing data (and name, when set) of a diagram.
+// Used by the realtime collaboration rooms.
+func (s *Store) SaveDocData(id, name string, data []byte) error {
+	var err error
+	if name != "" {
+		_, err = s.db.Exec(`UPDATE diagrams SET name = ?, data = ?, updated_at = ? WHERE id = ?`, name, string(data), nowISO(), id)
+	} else {
+		_, err = s.db.Exec(`UPDATE diagrams SET data = ?, updated_at = ? WHERE id = ?`, string(data), nowISO(), id)
+	}
+	return err
+}
 
 func (s *Store) List() ([]Diagram, error) {
 	rows, err := s.db.Query(`SELECT id, name, description, data, created_at, updated_at FROM diagrams ORDER BY updated_at DESC`)

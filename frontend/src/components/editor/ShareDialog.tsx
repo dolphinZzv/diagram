@@ -10,6 +10,7 @@ import {
   Rocket,
   Share2,
   ShieldOff,
+  Users,
 } from "lucide-react";
 import {
   Dialog,
@@ -28,6 +29,8 @@ import { useTheme } from "@/lib/theme";
 import { uploadShareImages } from "@/lib/shareImage";
 import { copyText } from "@/lib/clipboard";
 import { toast } from "@/lib/toast";
+import { confirmDialog } from "@/lib/dialog";
+import { describeError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -53,7 +56,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center gap-2">
       <span className="w-16 shrink-0 text-[11px] text-muted-foreground">{label}</span>
       <Input value={value} readOnly className="h-8 font-mono text-[11px]" onFocus={(e) => e.target.select()} />
-      <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={onCopy}>
+      <Button size="sm" variant="outline" className="h-8 shrink-0" aria-label={t("share.copy")} title={t("share.copy")} onClick={onCopy}>
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </Button>
     </div>
@@ -69,6 +72,7 @@ export function ShareDialog({ open, onOpenChange }: Props) {
   const setMeta = useEditor((s) => s.setMeta);
 
   const [share, setShare] = useState<ShareState>({ enabled: false, token: "" });
+  const [editShare, setEditShare] = useState<ShareState>({ enabled: false, token: "" });
   const [publish, setPublish] = useState<PublishState>({ published: false, publishedAt: "", dirty: false });
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -78,14 +82,20 @@ export function ShareDialog({ open, onOpenChange }: Props) {
   const refresh = useCallback(async () => {
     if (!metaId) {
       setShare({ enabled: false, token: "" });
+      setEditShare({ enabled: false, token: "" });
       setPublish({ published: false, publishedAt: "", dirty: false });
       return;
     }
     setLoading(true);
     try {
-      const [s, p] = await Promise.all([api.getShare(metaId), api.getPublish(metaId)]);
+      const [s, p, es] = await Promise.all([
+        api.getShare(metaId),
+        api.getPublish(metaId),
+        api.getEditShare(metaId),
+      ]);
       setShare(s);
       setPublish(p);
+      setEditShare(es);
       setMeta({ shareToken: s.enabled ? s.token : "" });
       if (s.token) {
         const check = async (format: "svg" | "png") => {
@@ -111,6 +121,9 @@ export function ShareDialog({ open, onOpenChange }: Props) {
   }, [open, refresh]);
 
   const url = share.token ? `${window.location.origin}${window.location.pathname}?share=${share.token}` : "";
+  const editUrl = editShare.token
+    ? `${window.location.origin}${window.location.pathname}?edit=${editShare.token}`
+    : "";
   const svgUrl = share.token ? `${window.location.origin}/api/share/${share.token}.svg` : "";
   const pngUrl = share.token ? `${window.location.origin}/api/share/${share.token}.png` : "";
 
@@ -125,7 +138,7 @@ export function ShareDialog({ open, onOpenChange }: Props) {
         setImages({ svg: true, png: true });
         if (!silent) toast.success(t("share.publishedToast"));
       } catch (e) {
-        toast.error(t("share.publishFail"), String(e));
+        toast.error(t("share.publishFail"), describeError(e));
       } finally {
         setPubBusy(false);
       }
@@ -144,7 +157,7 @@ export function ShareDialog({ open, onOpenChange }: Props) {
       // Publish immediately so the share link has content.
       await doPublish(true);
     } catch (e) {
-      toast.error(t("share.enableFail"), String(e));
+      toast.error(t("share.enableFail"), describeError(e));
     } finally {
       setBusy(false);
     }
@@ -152,7 +165,7 @@ export function ShareDialog({ open, onOpenChange }: Props) {
 
   const onDisable = useCallback(async () => {
     if (!metaId) return;
-    if (!confirm(t("share.confirmDisable"))) return;
+    if (!(await confirmDialog({ title: t("share.confirmDisable"), destructive: true }))) return;
     setBusy(true);
     try {
       await api.disableShare(metaId);
@@ -163,11 +176,76 @@ export function ShareDialog({ open, onOpenChange }: Props) {
       setImages({ svg: false, png: false });
       toast.info(t("share.disabledToast"));
     } catch (e) {
-      toast.error(t("share.disableFail"), String(e));
+      toast.error(t("share.disableFail"), describeError(e));
     } finally {
       setBusy(false);
     }
   }, [metaId, setMeta, t]);
+
+  const onEnableEdit = useCallback(async () => {
+    if (!metaId) return;
+    setBusy(true);
+    try {
+      const s = await api.enableEditShare(metaId);
+      setEditShare(s);
+      toast.success(t("share.editEnabledToast"));
+    } catch (e) {
+      toast.error(t("share.enableFail"), describeError(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [metaId, t]);
+
+  const onDisableEdit = useCallback(async () => {
+    if (!metaId) return;
+    if (!(await confirmDialog({ title: t("share.editDisable"), destructive: true }))) return;
+    setBusy(true);
+    try {
+      await api.disableEditShare(metaId);
+      setEditShare({ enabled: false, token: "" });
+      toast.info(t("share.editDisabledToast"));
+    } catch (e) {
+      toast.error(t("share.disableFail"), describeError(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [metaId, t]);
+
+  const editSection = (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <Users className="h-3.5 w-3.5" /> {t("share.editSection")}
+      </div>
+      <p className="text-[11px] text-muted-foreground">{t("share.editHint")}</p>
+      {editShare.enabled ? (
+        <>
+          <CopyRow label={t("share.editLinkLabel")} value={editUrl} />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={onEnableEdit} disabled={busy}>
+              <RefreshCw className={busy ? "h-4 w-4 animate-spin" : "h-4 w-4"} /> {t("share.editRegen")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive"
+              onClick={onDisableEdit}
+              disabled={busy}
+            >
+              <ShieldOff className="h-4 w-4" /> {t("share.editDisable")}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">{t("share.editNotEnabled")}</p>
+          <Button variant="outline" size="sm" onClick={onEnableEdit} disabled={busy}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}{" "}
+            {t("share.editEnable")}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 
   const statusText = publish.published
     ? publish.dirty
@@ -260,6 +338,9 @@ export function ShareDialog({ open, onOpenChange }: Props) {
                 <p className="text-[11px] text-amber-600 dark:text-amber-400">{t("share.imageNotReady")}</p>
               ) : null}
             </div>
+
+            <Separator />
+            {editSection}
           </div>
         ) : (
           <div className="space-y-3">
@@ -267,6 +348,9 @@ export function ShareDialog({ open, onOpenChange }: Props) {
             <Button onClick={onEnable} disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />} {t("share.enable")}
             </Button>
+
+            <Separator />
+            {editSection}
           </div>
         )}
       </DialogContent>

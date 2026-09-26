@@ -34,18 +34,30 @@ export function useAutoSave(delay = 2500) {
     const unsubscribe = useEditor.subscribe((state) => {
       if (!isAutoSaveEnabled()) return;
       const { nodes, edges, meta } = state;
-      // Need an existing document, unsaved changes, and a non-empty canvas.
-      if (!meta.id || meta.saved || meta.saving) return;
+      // Realtime rooms are persisted by the server; skip client autosave.
+      if (meta.realtime) return;
+      // Need an existing document (or a shared edit session), unsaved changes,
+      // and a non-empty canvas.
+      if ((!meta.id && !meta.editToken) || meta.saved || meta.saving) return;
       if (nodes.length === 0 && edges.length === 0) return;
 
       if (timer) window.clearTimeout(timer);
       timer = window.setTimeout(async () => {
         const s = useEditor.getState();
-        if (!s.meta.id || s.meta.saved) return;
+        if (s.meta.saved) return;
+        if (!s.meta.id && !s.meta.editToken) return;
         s.setMeta({ saving: true });
         try {
           const doc = serializeDoc(s.nodes, s.edges, s.meta.name, s.meta.description, getViewport());
-          await api.update(s.meta.id, { name: s.meta.name, description: s.meta.description, data: doc });
+          if (s.meta.editToken) {
+            await api.updateEditable(s.meta.editToken, {
+              name: s.meta.name,
+              description: s.meta.description,
+              data: doc,
+            });
+          } else if (s.meta.id) {
+            await api.update(s.meta.id, { name: s.meta.name, description: s.meta.description, data: doc });
+          }
           useEditor.getState().setMeta({ saved: true, saving: false });
         } catch {
           useEditor.getState().setMeta({ saving: false });

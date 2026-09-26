@@ -9,9 +9,12 @@ import { api } from "@/lib/api";
  */
 export function useShareSync() {
   const metaId = useEditor((s) => s.meta.id);
+  const editToken = useEditor((s) => s.meta.editToken);
   const setMeta = useEditor((s) => s.setMeta);
 
   useEffect(() => {
+    // Shared editable sessions have no auth, so skip the protected share lookup.
+    if (editToken) return;
     if (!metaId) {
       setMeta({ shareToken: "" });
       return;
@@ -26,5 +29,5 @@ export function useShareSync() {
     return () => {
       alive = false;
     };
-  }, [metaId, setMeta]);
+  }, [metaId, editToken, setMeta]);
 }

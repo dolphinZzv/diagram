@@ -16,6 +16,8 @@ import { api, type DiagramVersion } from "@/lib/api";
 import { normalizeEdges, normalizeNodes } from "@/lib/doc";
 import { useEditor } from "@/lib/store";
 import { toast } from "@/lib/toast";
+import { confirmDialog } from "@/lib/dialog";
+import { describeError } from "@/lib/errors";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -59,7 +61,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
     try {
       setVersions(await api.listVersions(metaId));
     } catch (e) {
-      toast.error(t("version.historyFail"), String(e));
+      toast.error(t("version.historyFail"), describeError(e));
     } finally {
       setLoading(false);
     }
@@ -93,7 +95,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
         onOpenChange(false);
         toast.success(t("version.loaded", { v: v.version }), t("version.loadedDesc"));
       } catch (e) {
-        toast.error(t("version.loadFail"), String(e));
+        toast.error(t("version.loadFail"), describeError(e));
       } finally {
         setBusy(null);
       }
@@ -104,7 +106,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
   const onRestore = useCallback(
     async (v: DiagramVersion) => {
       if (!metaId) return;
-      if (!confirm(t("version.confirmRestore", { v: v.version }))) return;
+      if (!(await confirmDialog({ title: t("version.confirmRestore", { v: v.version }), destructive: true }))) return;
       setBusy(v.version);
       try {
         const res = await api.restoreVersion(metaId, v.version);
@@ -113,7 +115,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
         onOpenChange(false);
         toast.success(t("version.restored", { v: v.version }), t("version.restoredDesc", { nv: res.version.version }));
       } catch (e) {
-        toast.error(t("version.restoreFail"), String(e));
+        toast.error(t("version.restoreFail"), describeError(e));
       } finally {
         setBusy(null);
       }
@@ -124,13 +126,13 @@ export function VersionHistory({ open, onOpenChange }: Props) {
   const onDelete = useCallback(
     async (v: DiagramVersion) => {
       if (!metaId) return;
-      if (!confirm(t("version.confirmDelete", { v: v.version }))) return;
+      if (!(await confirmDialog({ title: t("version.confirmDelete", { v: v.version }), destructive: true }))) return;
       try {
         await api.removeVersion(metaId, v.version);
         toast.success(t("version.deletedV", { v: v.version }));
         refresh();
       } catch (e) {
-        toast.error(t("version.deleteFail"), String(e));
+        toast.error(t("version.deleteFail"), describeError(e));
       }
     },
     [metaId, refresh, t]
@@ -145,7 +147,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
       toast.success(t("version.snapshotCreated", { v: v.version }));
       refresh();
     } catch (e) {
-      toast.error(t("version.snapshotFail"), String(e));
+      toast.error(t("version.snapshotFail"), describeError(e));
     }
   }, [metaId, metaSaved, label, refresh, t]);
 
@@ -236,6 +238,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                             size="icon"
                             className="h-8 w-8"
                             title={t("version.load")}
+                            aria-label={t("version.load")}
                             disabled={busy === v.version}
                             onClick={() => onLoad(v)}
                           >
@@ -250,6 +253,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                             size="icon"
                             className="h-8 w-8"
                             title={t("version.restore")}
+                            aria-label={t("version.restore")}
                             disabled={busy === v.version}
                             onClick={() => onRestore(v)}
                           >
@@ -260,6 +264,7 @@ export function VersionHistory({ open, onOpenChange }: Props) {
                             size="icon"
                             className="h-8 w-8 text-destructive"
                             title={t("version.delete")}
+                            aria-label={t("version.delete")}
                             onClick={() => onDelete(v)}
                           >
                             <Trash2 className="h-4 w-4" />

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEditor } from "@/lib/store";
-import { useUi, isCompactLayout } from "@/lib/ui";
+import { useUi, useIsCompactLayout } from "@/lib/ui";
 import { useT } from "@/lib/i18n";
 import { ContextMenu } from "./ContextMenu";
 import { ActionSheet } from "./ActionSheet";
@@ -35,6 +35,8 @@ export function SelectionToolbar() {
   const { flowToScreenPosition } = useReactFlow();
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  // Must run before any early return (Rules of Hooks).
+  const compact = useIsCompactLayout();
 
   const target = useMemo(() => {
     const selNodes = nodes.filter((n) => selectedIds.includes(n.id) && n.type !== "group" && n.type !== "lane");
@@ -79,7 +81,6 @@ export function SelectionToolbar() {
   if (!target || presentation) return null;
 
   const s = useEditor.getState();
-  const compact = isCompactLayout();
 
   const quick =
     target.kind === "node"
@@ -103,10 +104,10 @@ export function SelectionToolbar() {
   return (
     <>
       <div
-        className="fixed z-40 -translate-x-1/2 -translate-y-full pb-2"
+        className="pointer-events-none fixed z-40 -translate-x-1/2 -translate-y-full pb-2"
         style={{ left: target.screen.x, top: target.screen.y - 8 }}
       >
-        <div className="flex items-center gap-0.5 rounded-full border bg-background/95 p-1 shadow-lg backdrop-blur">
+        <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border bg-background/95 p-1 shadow-lg backdrop-blur">
           {quick.map((q) => (
             <Button
               key={q.title}

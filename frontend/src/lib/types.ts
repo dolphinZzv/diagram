@@ -1,3 +1,5 @@
+import { defaultShapeLabel } from "./i18n";
+
 export type ShapeType =
   | "rect"
   | "rounded"
@@ -98,7 +100,7 @@ export const SHAPE_LIST: ShapeType[] = [
 
 export function defaultNodeData(shape: ShapeType = "rect"): ShapeNodeData {
   const base: ShapeNodeData = {
-    label: shape === "text" ? "文本" : "",
+    label: shape === "text" ? defaultShapeLabel("text") : "",
     shape,
     fill: "#ffffff",
     stroke: "#475569",

@@ -26,6 +26,11 @@ export interface DiagramMeta {
   saving: boolean;
   /** Active read-only share token (empty when sharing is off). */
   shareToken: string;
+  /** When set, the editor is a shared *editable* session and saves go through
+   *  the public edit-token endpoint instead of the authenticated one. */
+  editToken?: string;
+  /** True while connected to a realtime collaboration room (server persists). */
+  realtime?: boolean;
 }
 
 export type AlignMode = "left" | "hcenter" | "right" | "top" | "vcenter" | "bottom";
@@ -97,13 +102,19 @@ interface EditorState {
 
   undo: () => void;
   redo: () => void;
-  pushHistory: () => void;
+  pushHistory: (key?: string) => void;
 }
 
 const MAX_HISTORY = 100;
 
 // Coalesce history entries while the user holds an arrow key.
 let lastNudgeAt = 0;
+
+// Coalesce rapid edits to the same field (typing, dragging a slider) into a
+// single undo step so Ctrl+Z does not undo one character / one pixel at a time.
+let lastHistoryKey: string | null = null;
+let lastHistoryAt = 0;
+const HISTORY_COALESCE_MS = 700;
 
 function nodeWidth(n: Node): number {
   const data = n.data as Partial<ShapeNodeData>;
@@ -126,7 +137,7 @@ function nodeHeight(n: Node): number {
 export const useEditor = create<EditorState>((set, get) => ({
   nodes: [],
   edges: [],
-  meta: { id: null, name: "未命名流程图", description: "", saved: true, saving: false, shareToken: "" },
+  meta: { id: null, name: tr("topbar.untitled"), description: "", saved: true, saving: false, shareToken: "" },
   selected: null,
   selectedIds: [],
   clipboard: null,
@@ -180,7 +191,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   updateNodeData: (id, patch) => {
     const { nodes, pushHistory } = get();
-    pushHistory();
+    pushHistory(`node:${id}:${Object.keys(patch).sort().join(",")}`);
     set({
       nodes: nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...patch } } : n)),
       meta: { ...get().meta, saved: false },
@@ -189,7 +200,7 @@ export const useEditor = create<EditorState>((set, get) => ({
 
   updateEdgeData: (id, patch) => {
     const { edges, pushHistory } = get();
-    pushHistory();
+    pushHistory(`edge:${id}:${Object.keys(patch).sort().join(",")}`);
     set({
       edges: edges.map((e) => (e.id === id ? { ...e, data: { ...e.data, ...patch } } : e)),
       meta: { ...get().meta, saved: false },
@@ -199,7 +210,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   updateManyNodes: (ids, patch) => {
     const { nodes, pushHistory } = get();
     if (ids.length === 0) return;
-    pushHistory();
+    pushHistory(`nodes:${[...ids].sort().join(",")}:${Object.keys(patch).sort().join(",")}`);
     const idSet = new Set(ids);
     set({
       nodes: nodes.map((n) => (idSet.has(n.id) ? { ...n, data: { ...n.data, ...patch } } : n)),
@@ -210,7 +221,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   updateManyEdges: (ids, patch) => {
     const { edges, pushHistory } = get();
     if (ids.length === 0) return;
-    pushHistory();
+    pushHistory(`edges:${[...ids].sort().join(",")}:${Object.keys(patch).sort().join(",")}`);
     const idSet = new Set(ids);
     set({
       edges: edges.map((e) => (idSet.has(e.id) ? { ...e, data: { ...e.data, ...patch } } : e)),
@@ -965,7 +976,15 @@ export const useEditor = create<EditorState>((set, get) => ({
     set({ nodes: [], edges: [], selected: null, selectedIds: [], meta: { ...get().meta, saved: false } });
   },
 
-  pushHistory: () => {
+  pushHistory: (key?: string) => {
+    const now = Date.now();
+    // Coalesce consecutive edits to the same field into one undo step.
+    if (key && key === lastHistoryKey && now - lastHistoryAt < HISTORY_COALESCE_MS) {
+      lastHistoryAt = now;
+      return;
+    }
+    lastHistoryKey = key ?? null;
+    lastHistoryAt = now;
     const { nodes, edges, past } = get();
     const nextPast = [...past, { nodes, edges }];
     if (nextPast.length > MAX_HISTORY) nextPast.shift();
@@ -975,6 +994,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   undo: () => {
     const { past, future, nodes, edges } = get();
     if (past.length === 0) return;
+    lastHistoryKey = null;
     const prev = past[past.length - 1];
     set({
       past: past.slice(0, -1),
@@ -990,6 +1010,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   redo: () => {
     const { past, future, nodes, edges } = get();
     if (future.length === 0) return;
+    lastHistoryKey = null;
     const next = future[0];
     set({
       future: future.slice(1),

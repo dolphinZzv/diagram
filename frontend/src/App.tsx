@@ -1,3 +1,4 @@
+import { lazy } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { LayoutGrid, SlidersHorizontal, SquareDashed } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,16 +9,17 @@ import { ShapePalette } from "@/components/editor/ShapePalette";
 import { Canvas } from "@/components/editor/Canvas";
 import { Inspector } from "@/components/editor/Inspector";
 import { SharedView } from "@/components/editor/SharedView";
-import { ShortcutsDialog } from "@/components/editor/ShortcutsDialog";
-import { CommandPalette } from "@/components/editor/CommandPalette";
-import { ImportTextDialog } from "@/components/editor/ImportTextDialog";
-import { TemplateGallery } from "@/components/editor/TemplateGallery";
-import { SaveComponentDialog } from "@/components/editor/SaveComponentDialog";
-import { ComponentLibraryDialog } from "@/components/editor/ComponentLibraryDialog";
-import { SelectionToolbar } from "@/components/editor/SelectionToolbar";import { SelectionActionsBar } from "@/components/editor/SelectionActionsBar";
+import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
+import { SelectionActionsBar } from "@/components/editor/SelectionActionsBar";
+import { DocumentsPanel } from "@/components/editor/DocumentsPanel";
+import { CollapsedRail } from "@/components/editor/CollapsedRail";
+import { LazyDialog } from "@/components/LazyDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui";
 import { useDraftPersistence } from "@/hooks/useDraft";
+import { useDocumentBootstrap } from "@/hooks/useDocumentBootstrap";
+import { useRealtime } from "@/hooks/useRealtime";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { useShareSync } from "@/hooks/useShareSync";
 import { useClipboardPaste } from "@/hooks/useClipboardPaste";
@@ -25,9 +27,37 @@ import { useComponentSync } from "@/hooks/useComponentSync";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/Toaster";
 
-function EditorApp() {
+// Optional dialogs are code-split: their (sometimes heavy) dependencies are not
+// part of the initial bundle.
+const ShortcutsDialog = lazy(() =>
+  import("@/components/editor/ShortcutsDialog").then((m) => ({ default: m.ShortcutsDialog }))
+);
+const CommandPalette = lazy(() =>
+  import("@/components/editor/CommandPalette").then((m) => ({ default: m.CommandPalette }))
+);
+const ImportTextDialog = lazy(() =>
+  import("@/components/editor/ImportTextDialog").then((m) => ({ default: m.ImportTextDialog }))
+);
+const TemplateGallery = lazy(() =>
+  import("@/components/editor/TemplateGallery").then((m) => ({ default: m.TemplateGallery }))
+);
+const SaveComponentDialog = lazy(() =>
+  import("@/components/editor/SaveComponentDialog").then((m) => ({ default: m.SaveComponentDialog }))
+);
+const ComponentLibraryDialog = lazy(() =>
+  import("@/components/editor/ComponentLibraryDialog").then((m) => ({
+    default: m.ComponentLibraryDialog,
+  }))
+);
+const McpDialog = lazy(() =>
+  import("@/components/editor/McpDialog").then((m) => ({ default: m.McpDialog }))
+);
+
+function EditorApp({ editToken }: { editToken?: string }) {
   const t = useT();
   useDraftPersistence();
+  useDocumentBootstrap(editToken);
+  useRealtime(editToken);
   useAutoSave();
   useShareSync();
   useClipboardPaste();
@@ -39,6 +69,21 @@ function EditorApp() {
   const setInspectorOpen = useUi((s) => s.setInspectorOpen);
   const selectMode = useUi((s) => s.selectMode);
   const setSelectMode = useUi((s) => s.setSelectMode);
+  const documentsPanel = useUi((s) => s.documentsPanel);
+  const setDocumentsPanel = useUi((s) => s.setDocumentsPanel);
+  const shapesPanel = useUi((s) => s.shapesPanel);
+  const setShapesPanel = useUi((s) => s.setShapesPanel);
+  const inspectorPanel = useUi((s) => s.inspectorPanel);
+  const setInspectorPanel = useUi((s) => s.setInspectorPanel);
+  const documentsDrawer = useUi((s) => s.documentsDrawer);
+  const setDocumentsDrawer = useUi((s) => s.setDocumentsDrawer);
+  const shortcutsOpen = useUi((s) => s.shortcutsOpen);
+  const commandOpen = useUi((s) => s.commandOpen);
+  const importOpen = useUi((s) => s.importOpen);
+  const templateGalleryOpen = useUi((s) => s.templateGalleryOpen);
+  const saveComponentOpen = useUi((s) => s.saveComponentOpen);
+  const componentLibraryOpen = useUi((s) => s.componentLibraryOpen);
+  const mcpOpen = useUi((s) => s.mcpOpen);
 
   return (
     <div className={cn("flex h-[100dvh] flex-col overflow-hidden bg-muted/20", sketch && "sketch")}>
@@ -51,15 +96,38 @@ function EditorApp() {
       <TopBar />
       <SelectionActionsBar />
       <div className="flex flex-1 overflow-hidden">
-        <aside className="hidden w-[210px] shrink-0 border-r bg-background lg:block">
-          <ShapePalette />
-        </aside>
+        {!editToken && documentsPanel ? (
+          <aside className="hidden w-[230px] shrink-0 border-r bg-background lg:block">
+            <DocumentsPanel onCollapse={() => setDocumentsPanel(false)} />
+          </aside>
+        ) : !editToken ? (
+          <CollapsedRail side="left" label={t("docs.title")} onExpand={() => setDocumentsPanel(true)} />
+        ) : null}
+        {shapesPanel ? (
+          <aside className="hidden w-[210px] shrink-0 border-r bg-background lg:block">
+            <ShapePalette onCollapse={() => setShapesPanel(false)} />
+          </aside>
+        ) : (
+          <CollapsedRail
+            side="left"
+            label={t("palette.panelTitle")}
+            onExpand={() => setShapesPanel(true)}
+          />
+        )}
         <main className="relative flex-1">
           <Canvas />
         </main>
-        <aside className="hidden w-[290px] shrink-0 border-l bg-background lg:block">
-          <Inspector />
-        </aside>
+        {inspectorPanel ? (
+          <aside className="hidden w-[290px] shrink-0 border-l bg-background lg:block">
+            <Inspector onCollapse={() => setInspectorPanel(false)} />
+          </aside>
+        ) : (
+          <CollapsedRail
+            side="right"
+            label={t("inspector.panelTitle")}
+            onExpand={() => setInspectorPanel(true)}
+          />
+        )}
       </div>
 
       {/* Floating toolbar for phones / tablets */}
@@ -82,6 +150,14 @@ function EditorApp() {
           </Button>
         </div>
       </div>
+
+      {!editToken ? (
+        <Sheet open={documentsDrawer} onOpenChange={setDocumentsDrawer}>
+          <SheetContent side="left" className="w-[85vw] max-w-xs gap-0 p-0">
+            <DocumentsPanel onOpened={() => setDocumentsDrawer(false)} />
+          </SheetContent>
+        </Sheet>
+      ) : null}
 
       <Sheet open={paletteOpen} onOpenChange={setPaletteOpen}>
         <SheetContent side="left" className="w-[80vw] max-w-xs gap-0 p-0">
@@ -106,32 +182,52 @@ function EditorApp() {
       </Sheet>
 
       <SelectionToolbar />
-      <ShortcutsDialog />
-      <CommandPalette />
-      <ImportTextDialog />
-      <TemplateGallery />
-      <SaveComponentDialog />
-      <ComponentLibraryDialog />
+      <LazyDialog open={shortcutsOpen}>
+        <ShortcutsDialog />
+      </LazyDialog>
+      <LazyDialog open={commandOpen}>
+        <CommandPalette />
+      </LazyDialog>
+      <LazyDialog open={importOpen}>
+        <ImportTextDialog />
+      </LazyDialog>
+      <LazyDialog open={templateGalleryOpen}>
+        <TemplateGallery />
+      </LazyDialog>
+      <LazyDialog open={saveComponentOpen}>
+        <SaveComponentDialog />
+      </LazyDialog>
+      <LazyDialog open={componentLibraryOpen}>
+        <ComponentLibraryDialog />
+      </LazyDialog>
+      <LazyDialog open={mcpOpen}>
+        <McpDialog />
+      </LazyDialog>
+      <ConfirmDialog />
     </div>
   );
 }
 
 function App() {
+  const params = new URLSearchParams(window.location.search);
   // Read-only share mode: /?share=<token>
-  const shareToken = new URLSearchParams(window.location.search).get("share");
+  const shareToken = params.get("share");
   if (shareToken) {
     return (
       <>
         <SharedView token={shareToken} />
         <Toaster />
+        <ConfirmDialog />
       </>
     );
   }
+  // Editable share mode: /?edit=<token>
+  const editToken = params.get("edit") ?? undefined;
 
   return (
     <ReactFlowProvider>
       <TooltipProvider delayDuration={300}>
-        <EditorApp />
+        <EditorApp editToken={editToken} />
         <Toaster />
       </TooltipProvider>
     </ReactFlowProvider>

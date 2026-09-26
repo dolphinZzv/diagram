@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { Bold, Italic, RotateCw, Trash2, X, Copy, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, Group, Ungroup, Lock, LockOpen, Plus, Send } from "lucide-react";
+import { Bold, Italic, RotateCw, Trash2, X, Copy, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, ChevronRight, SlidersHorizontal, Group, Ungroup, Lock, LockOpen, Plus, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -144,7 +144,8 @@ function ArrowSelect({
   );
 }
 
-export function Inspector() {
+export function Inspector({ onCollapse }: { onCollapse?: () => void } = {}) {
+  const t = useT();
   const nodes = useEditor((s) => s.nodes);
   const edges = useEditor((s) => s.edges);
   const selected = useEditor((s) => s.selected);
@@ -153,12 +154,33 @@ export function Inspector() {
   const node = useMemo(() => nodes.find((n) => n.id === selected), [nodes, selected]);
   const edge = useMemo(() => edges.find((e) => e.id === selected), [edges, selected]);
 
-  if (selectedIds.length > 1) return <MultiInspector />;
-  if (node && node.type === "lifeline")
-    return <LifelineInspector id={node.id} data={node.data as ShapeNodeData} />;
-  if (node) return <NodeInspector id={node.id} data={node.data as ShapeNodeData} />;
-  if (edge) return <EdgeInspector id={edge.id} data={edge.data as EdgeData} />;
-  return <CanvasInspector />;
+  let content: ReactNode;
+  if (selectedIds.length > 1) content = <MultiInspector />;
+  else if (node && node.type === "lifeline")
+    content = <LifelineInspector id={node.id} data={node.data as ShapeNodeData} />;
+  else if (node) content = <NodeInspector id={node.id} data={node.data as ShapeNodeData} />;
+  else if (edge) content = <EdgeInspector id={edge.id} data={edge.data as EdgeData} />;
+  else content = <CanvasInspector />;
+
+  if (!onCollapse) return content;
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex h-8 shrink-0 items-center gap-1.5 border-b px-3">
+        <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-semibold">{t("inspector.panelTitle")}</span>
+        <button
+          type="button"
+          onClick={onCollapse}
+          aria-label={t("panel.collapse")}
+          title={t("panel.collapse")}
+          className="ml-auto flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+    </div>
+  );
 }
 
 function NodeInspector({ id, data }: { id: string; data: ShapeNodeData }) {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultEdgeData, defaultNodeData, SHAPE_LIST, SHAPE_LABELS } from "./types";
+import { useI18n } from "./i18n";
 
 describe("defaultNodeData", () => {
   it("returns sensible defaults for a rectangle", () => {
@@ -40,6 +41,13 @@ describe("defaultNodeData", () => {
       expect(d.width, `width for ${shape}`).toBeLessThanOrEqual(140);
       expect(d.height, `height for ${shape}`).toBeLessThanOrEqual(130);
     }
+  });
+
+  it("localizes the default label of text nodes", () => {
+    useI18n.setState({ lang: "en" });
+    expect(defaultNodeData("text").label).toBe("Text");
+    useI18n.setState({ lang: "zh" });
+    expect(defaultNodeData("text").label).toBe("文本");
   });
 });
 

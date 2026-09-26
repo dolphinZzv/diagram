@@ -114,6 +114,7 @@ export function CommandPalette() {
       add(t("command.actions"), t("command.theme"), () => setTheme(theme === "dark" ? "light" : "dark")),
       add(t("command.actions"), t("command.language"), () => setLang(lang === "zh" ? "en" : "zh")),
       add(t("command.actions"), t("shortcuts.menu"), () => useUi.getState().setShortcutsOpen(true)),
+      add(t("command.actions"), t("mcp.menu"), () => useUi.getState().setMcpOpen(true)),
     ];
 
     const palettes: Item[] = Object.entries(DIAGRAM_PALETTES).map(([key, p]) =>

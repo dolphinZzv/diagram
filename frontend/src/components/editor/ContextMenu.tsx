@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export interface CtxItem {
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function ContextMenu({ x, y, items, onClose }: Props) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,6 +59,8 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
   return (
     <div
       ref={ref}
+      role="menu"
+      aria-label={t("menu.actions")}
       className="fixed z-[60] min-w-[190px] rounded-md border bg-popover p-1 text-popover-foreground shadow-lg"
       style={style}
       onContextMenu={(e) => e.preventDefault()}
@@ -68,6 +72,7 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
           <button
             key={it.label + i}
             type="button"
+            role="menuitem"
             disabled={it.disabled}
             onClick={() => {
               it.onClick();

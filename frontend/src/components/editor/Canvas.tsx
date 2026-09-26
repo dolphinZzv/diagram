@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -23,7 +23,7 @@ import { defaultNodeData, type ShapeType } from "@/lib/types";
 import { uid } from "@/lib/id";
 import { useTheme, canvasColors } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
-import { isCompactLayout, useUi } from "@/lib/ui";
+import { useIsCompactLayout, useUi } from "@/lib/ui";
 import { ContextMenu, type CtxItem } from "./ContextMenu";
 import { ActionSheet } from "./ActionSheet";
 import { SequenceMessageDialog } from "./SequenceMessageDialog";
@@ -31,6 +31,8 @@ import { PresentationBar } from "./PresentationBar";
 import { useSelectionMenu } from "./useSelectionMenu";
 import { HelperLines } from "./HelperLines";
 import { EmptyState } from "./EmptyState";
+import { MobileZoomControls } from "./MobileZoomControls";
+import { RemoteCursors } from "./RemoteCursors";
 
 function nodeSize(n: Node): { w: number; h: number } {
   const d = n.data as { width?: number; height?: number };
@@ -66,7 +68,7 @@ export function Canvas() {
   const colors = canvasColors(theme);
   const t = useT();
   const selectMode = useUi((s) => s.selectMode);
-  const compact = isCompactLayout();
+  const compact = useIsCompactLayout();
 
   const { screenToFlowPosition, getZoom } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -162,6 +164,8 @@ export function Canvas() {
   );
 
   const lastTap = useRef<{ id: string; t: number } | null>(null);
+  // Cancels a pending long-press (e.g. when a second finger starts a pinch).
+  const longPressCancelRef = useRef<(() => void) | null>(null);
   const handleTap = useCallback(
     (id: string) => {
       const now = Date.now();
@@ -266,8 +270,18 @@ export function Canvas() {
   // Long-press (touch/pen) opens the bottom action sheet.
   const startLongPress = useCallback((event: React.PointerEvent) => {
     if (event.pointerType === "mouse") return;
+    // Any new touch cancels the previous candidate so a second finger starting
+    // a pinch-zoom never leaves a pending long-press behind.
+    longPressCancelRef.current?.();
+    longPressCancelRef.current = null;
+    // Only the first finger may open a long-press menu.
+    if (!event.isPrimary) return;
+
     const el = event.target as Element | null;
     if (!el || typeof el.closest !== "function") return;
+    // Never start a long-press on interactive chrome (resize grips, connect
+    // handles) or while inline-editing: it would interrupt the gesture.
+    if (el.closest(".react-flow__resize-control, .react-flow__handle, .nodrag")) return;
     const nodeEl = el.closest(".react-flow__node") as HTMLElement | null;
     const edgeEl = el.closest(".react-flow__edge") as HTMLElement | null;
     const paneEl = el.closest(".react-flow__pane") as HTMLElement | null;
@@ -294,7 +308,9 @@ export function Canvas() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", cleanup);
       window.removeEventListener("pointercancel", cleanup);
+      if (longPressCancelRef.current === cleanup) longPressCancelRef.current = null;
     };
+    longPressCancelRef.current = cleanup;
     function onMove(ev: PointerEvent) {
       if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 10) cleanup();
     }
@@ -315,6 +331,9 @@ export function Canvas() {
     window.addEventListener("pointerup", cleanup);
     window.addEventListener("pointercancel", cleanup);
   }, []);
+
+  // Drop any pending long-press timer if the canvas unmounts.
+  useEffect(() => () => longPressCancelRef.current?.(), []);
 
   const buildItems = useSelectionMenu();
 
@@ -380,6 +399,9 @@ export function Canvas() {
         panOnDrag={compact ? !selectMode : [1, 2]}
         panActivationKeyCode="Space"
         panOnScroll={!compact}
+        zoomOnPinch
+        preventScrolling
+        nodeDragThreshold={compact ? 5 : 1}
         selectionMode={SelectionMode.Partial}
         fitView
         fitViewOptions={{ padding: 0.3 }}
@@ -412,9 +434,12 @@ export function Canvas() {
           width={bounds.width}
           height={bounds.height}
         />
+        <RemoteCursors />
       </ReactFlow>
 
       {showEmpty ? <EmptyState /> : null}
+
+      <MobileZoomControls />
 
       {menu ? <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} /> : null}
 

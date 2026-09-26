@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Github, Info, KeyRound, Languages, Moon, RefreshCw, Settings, Sun, Keyboard } from "lucide-react";
+import { Github, Info, KeyRound, Languages, Moon, RefreshCw, Settings, Sun, Keyboard, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import { useI18n, useT } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useUi } from "@/lib/ui";
 import { toast } from "@/lib/toast";
+import { describeError } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { isAutoSaveEnabled, setAutoSaveEnabled } from "@/hooks/useAutoSave";
 
@@ -33,6 +34,7 @@ export function AboutMenu() {
   const theme = useTheme((s) => s.theme);
   const setTheme = useTheme((s) => s.setTheme);
   const setShortcutsOpen = useUi((s) => s.setShortcutsOpen);
+  const setMcpOpen = useUi((s) => s.setMcpOpen);
 
   const [info, setInfo] = useState<VersionInfo | null>(null);
   const [checking, setChecking] = useState(false);
@@ -68,7 +70,7 @@ export function AboutMenu() {
         toast.success(t("about.upToDate"), data.current);
       }
     } catch (e) {
-      toast.error(t("about.checkFail"), String(e));
+      toast.error(t("about.checkFail"), describeError(e));
     } finally {
       setChecking(false);
     }
@@ -82,7 +84,7 @@ export function AboutMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
+        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("about.title")}>
           <Settings className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -198,6 +200,9 @@ export function AboutMenu() {
         </div>
 
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setMcpOpen(true)}>
+          <Bot className="h-4 w-4" /> {t("mcp.menu")}
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setShortcutsOpen(true)}>
           <Keyboard className="h-4 w-4" /> {t("shortcuts.menu")}
         </DropdownMenuItem>

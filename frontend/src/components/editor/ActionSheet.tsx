@@ -19,7 +19,7 @@ export function ActionSheet({ open, onOpenChange, title, items }: Props) {
         className="gap-0 rounded-t-2xl p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
         <div className="px-2 pb-2 pt-2 text-center text-sm font-semibold">{title}</div>
-        <div className="max-h-[60vh] overflow-y-auto overscroll-contain">
+        <div role="menu" aria-label={title} className="max-h-[60vh] overflow-y-auto overscroll-contain">
           {items.map((it, i) =>
             it === "separator" ? (
               <div key={`sep-${i}`} className="my-1 h-px bg-border" />
@@ -27,6 +27,7 @@ export function ActionSheet({ open, onOpenChange, title, items }: Props) {
               <button
                 key={it.label + i}
                 type="button"
+                role="menuitem"
                 disabled={it.disabled}
                 onClick={() => {
                   it.onClick();

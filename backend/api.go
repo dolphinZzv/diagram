@@ -9,6 +9,7 @@ import (
 
 type API struct {
 	store *Store
+	ws    *wsHub
 }
 
 type diagramListItem struct {
@@ -81,7 +82,7 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 		req.Data = json.RawMessage(`{"nodes":[],"edges":[]}`)
 	}
 	d := Diagram{
-		ID:          newID(),
+		ID:          newUUID(),
 		Name:        req.Name,
 		Description: req.Description,
 		Data:        req.Data,

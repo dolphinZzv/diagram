@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Handle, Position, NodeResizer, type NodeProps, type Node } from "@xyflow/react";
 import { Lock } from "lucide-react";
 import { Shape } from "./Shape";
@@ -24,6 +24,17 @@ function ShapeNodeComponent({ id, data, selected, width, height }: NodeProps<Sha
     setEditing(false);
   };
 
+  // Stable callback: React Flow's ResizeControl re-creates its resizer whenever
+  // onResizeEnd changes. An inline arrow re-created every render (dimensions
+  // change while resizing) tore the resizer down mid-gesture, which broke
+  // continuous touch resizing on mobile (touch listeners live on the handle).
+  const onResizeEnd = useCallback(
+    (_event: unknown, params: { width: number; height: number }) => {
+      updateNodeData(id, { width: Math.round(params.width), height: Math.round(params.height) });
+    },
+    [id, updateNodeData]
+  );
+
   return (
     <div
       className="shape-node relative h-full w-full"
@@ -41,9 +52,7 @@ function ShapeNodeComponent({ id, data, selected, width, height }: NodeProps<Sha
         isVisible={selected && !locked}
         lineClassName="!border-primary"
         handleClassName="!h-2.5 !w-2.5 !rounded-sm !border-primary !bg-background"
-        onResizeEnd={(_e, params) => {
-          updateNodeData(id, { width: Math.round(params.width), height: Math.round(params.height) });
-        }}
+        onResizeEnd={onResizeEnd}
       />
 
       <div
