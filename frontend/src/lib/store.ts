@@ -9,7 +9,7 @@ import {
   applyEdgeChanges,
   addEdge,
 } from "@xyflow/react";
-import { defaultEdgeData, defaultNodeData, type ShapeNodeData, type EdgeData, type LineStyle } from "./types";
+import { defaultEdgeData, defaultNodeData, defaultSubgraphData, type ShapeNodeData, type EdgeData, type LineStyle } from "./types";
 import { uid } from "./id";
 import { defaultShapeLabel, tr } from "./i18n";
 import { layoutLayered } from "./layout";
@@ -60,6 +60,12 @@ interface EditorState {
   updateManyEdges: (ids: string[], patch: Partial<EdgeData>) => void;
   addNode: (node: Node) => void;
   addShapeNode: (shape: ShapeNodeData["shape"], position: { x: number; y: number }) => void;
+  addSubgraphNode: (
+    diagramId: string,
+    label: string,
+    position: { x: number; y: number },
+    size?: { width: number; height: number }
+  ) => void;
   removeSelected: () => void;
   duplicateSelected: () => void;
   copySelected: () => void;
@@ -243,6 +249,24 @@ export const useEditor = create<EditorState>((set, get) => ({
     addNode({
       id: uid("n_"),
       type: "shape",
+      position,
+      data,
+      style: { width: data.width, height: data.height },
+      selected: true,
+    });
+  },
+
+  addSubgraphNode: (diagramId, label, position, size) => {
+    const { addNode } = get();
+    const data = {
+      ...defaultSubgraphData(),
+      label,
+      diagramId,
+      ...(size ? { width: size.width, height: size.height } : {}),
+    };
+    addNode({
+      id: uid("n_"),
+      type: "subgraph",
       position,
       data,
       style: { width: data.width, height: data.height },

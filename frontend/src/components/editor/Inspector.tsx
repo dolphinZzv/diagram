@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { Bold, Italic, RotateCw, Trash2, X, Copy, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, ChevronRight, SlidersHorizontal, Group, Ungroup, Lock, LockOpen, Plus, Send } from "lucide-react";
+import { Bold, Italic, RotateCw, Trash2, X, Copy, ChevronsUp, ChevronUp, ChevronDown, ChevronsDown, ChevronRight, SlidersHorizontal, Group, Ungroup, Lock, LockOpen, Plus, Send, Boxes } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -18,10 +18,11 @@ import { ColorField } from "./ColorField";
 import { ICON_KEYS } from "./icons";
 import { STYLE_PRESETS, presetStyle } from "@/lib/stylePresets";
 import { useEditor, type AlignMode } from "@/lib/store";
-import { SHAPE_LIST, type EdgeData, type ShapeNodeData } from "@/lib/types";
+import { SHAPE_LIST, type EdgeData, type ShapeNodeData, type SubgraphNodeData } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { useUi } from "@/lib/ui";
 import { cn } from "@/lib/utils";
+import { useSubgraphNav } from "@/hooks/useSubgraphNav";
 
 function Row({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
@@ -158,6 +159,8 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void } = {}) {
   if (selectedIds.length > 1) content = <MultiInspector />;
   else if (node && node.type === "lifeline")
     content = <LifelineInspector id={node.id} data={node.data as ShapeNodeData} />;
+  else if (node && node.type === "subgraph")
+    content = <SubgraphInspector id={node.id} data={node.data as unknown as SubgraphNodeData} />;
   else if (node) content = <NodeInspector id={node.id} data={node.data as ShapeNodeData} />;
   else if (edge) content = <EdgeInspector id={edge.id} data={edge.data as EdgeData} />;
   else content = <CanvasInspector />;
@@ -179,6 +182,42 @@ export function Inspector({ onCollapse }: { onCollapse?: () => void } = {}) {
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+    </div>
+  );
+}
+
+function SubgraphInspector({ id, data }: { id: string; data: SubgraphNodeData }) {
+  const t = useT();
+  const update = useEditor((s) => s.updateNodeData);
+  const remove = useEditor((s) => s.removeSelected);
+  const setSelected = useEditor((s) => s.setSelected);
+  const { enter } = useSubgraphNav();
+  return (
+    <div className="flex h-full flex-col">
+      <header className="flex items-center justify-between border-b px-3 py-2">
+        <span className="text-sm font-semibold">{t("subgraph.title")}</span>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelected(null)} title={t("inspector.cancel")}>
+            <X className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={remove} title={t("inspector.remove")}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </header>
+      <div className="space-y-3 overflow-y-auto p-3">
+        <Row label={t("inspector.label")}>
+          <Input value={data.label} onChange={(e) => update(id, { label: e.target.value })} className="h-8 text-xs" />
+        </Row>
+        <Row label={t("subgraph.target")}>
+          <div className="truncate rounded bg-muted px-2 py-1 font-mono text-[11px] text-muted-foreground">
+            {data.diagramId || "—"}
+          </div>
+        </Row>
+        <Button size="sm" className="w-full" disabled={!data.diagramId} onClick={() => void enter(data.diagramId, data.label)}>
+          <Boxes className="h-4 w-4" /> {t("subgraph.enter")}
+        </Button>
+      </div>
     </div>
   );
 }

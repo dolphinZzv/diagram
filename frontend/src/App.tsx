@@ -13,6 +13,7 @@ import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
 import { SelectionActionsBar } from "@/components/editor/SelectionActionsBar";
 import { DocumentsPanel } from "@/components/editor/DocumentsPanel";
 import { CollapsedRail } from "@/components/editor/CollapsedRail";
+import { SubgraphBreadcrumb } from "@/components/editor/SubgraphBreadcrumb";
 import { LazyDialog } from "@/components/LazyDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useT } from "@/lib/i18n";
@@ -52,6 +53,11 @@ const ComponentLibraryDialog = lazy(() =>
 const McpDialog = lazy(() =>
   import("@/components/editor/McpDialog").then((m) => ({ default: m.McpDialog }))
 );
+const SubgraphPickerDialog = lazy(() =>
+  import("@/components/editor/SubgraphPickerDialog").then((m) => ({
+    default: m.SubgraphPickerDialog,
+  }))
+);
 
 function EditorApp({ editToken }: { editToken?: string }) {
   const t = useT();
@@ -84,6 +90,7 @@ function EditorApp({ editToken }: { editToken?: string }) {
   const saveComponentOpen = useUi((s) => s.saveComponentOpen);
   const componentLibraryOpen = useUi((s) => s.componentLibraryOpen);
   const mcpOpen = useUi((s) => s.mcpOpen);
+  const subgraphPickerOpen = useUi((s) => s.subgraphPickerOpen);
 
   return (
     <div className={cn("flex h-[100dvh] flex-col overflow-hidden bg-muted/20", sketch && "sketch")}>
@@ -95,6 +102,7 @@ function EditorApp({ editToken }: { editToken?: string }) {
       </svg>
       <TopBar />
       <SelectionActionsBar />
+      <SubgraphBreadcrumb />
       <div className="flex flex-1 overflow-hidden">
         {!editToken && documentsPanel ? (
           <aside className="hidden w-[230px] shrink-0 border-r bg-background lg:block">
@@ -202,6 +210,9 @@ function EditorApp({ editToken }: { editToken?: string }) {
       </LazyDialog>
       <LazyDialog open={mcpOpen}>
         <McpDialog />
+      </LazyDialog>
+      <LazyDialog open={subgraphPickerOpen}>
+        <SubgraphPickerDialog />
       </LazyDialog>
       <ConfirmDialog />
     </div>

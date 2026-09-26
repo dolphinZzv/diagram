@@ -33,6 +33,8 @@ import { HelperLines } from "./HelperLines";
 import { EmptyState } from "./EmptyState";
 import { MobileZoomControls } from "./MobileZoomControls";
 import { RemoteCursors } from "./RemoteCursors";
+import { useSubgraphNav } from "@/hooks/useSubgraphNav";
+import type { SubgraphNodeData } from "@/lib/types";
 
 function nodeSize(n: Node): { w: number; h: number } {
   const d = n.data as { width?: number; height?: number };
@@ -70,6 +72,7 @@ export function Canvas() {
   const selectMode = useUi((s) => s.selectMode);
   const compact = useIsCompactLayout();
 
+  const { enter: enterSubgraph } = useSubgraphNav();
   const { screenToFlowPosition, getZoom } = useReactFlow();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -384,7 +387,14 @@ export function Canvas() {
         onSelectionChange={onSelectionChange}
         onNodeClick={(_, n) => handleTap(n.id)}
         onEdgeClick={(_, e) => handleTap(e.id)}
-        onNodeDoubleClick={(_, n) => openInspector(n.id)}
+        onNodeDoubleClick={(_, n) => {
+          if (n.type === "subgraph") {
+            const d = n.data as unknown as SubgraphNodeData;
+            void enterSubgraph(d.diagramId, d.label);
+          } else {
+            openInspector(n.id);
+          }
+        }}
         onEdgeDoubleClick={(_, e) => openInspector(e.id)}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}

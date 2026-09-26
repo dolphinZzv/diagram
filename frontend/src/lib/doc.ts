@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import { defaultEdgeData, defaultNodeData, type ShapeNodeData } from "./types";
+import { defaultEdgeData, defaultNodeData, defaultSubgraphData, type ShapeNodeData } from "./types";
 import { uid } from "./id";
 
 export interface DiagramFile {
@@ -47,6 +47,29 @@ export function normalizeNodes(raw: unknown[]): Node[] {
         ...node,
         id,
         type: "lifeline",
+        position,
+        data,
+        style: { width: data.width, height: data.height, ...(node.style ?? {}) },
+      } as Node;
+    }
+
+    if (node.type === "subgraph") {
+      const d = (node.data ?? {}) as Record<string, unknown>;
+      const data = {
+        ...defaultSubgraphData(),
+        label: (d.label as string) ?? "",
+        diagramId: (d.diagramId as string) ?? "",
+        width: (d.width as number) ?? 220,
+        height: (d.height as number) ?? 150,
+        fill: (d.fill as string) ?? "#f8fafc",
+        stroke: (d.stroke as string) ?? "#94a3b8",
+        textColor: (d.textColor as string) ?? "#0f172a",
+        opacity: (d.opacity as number) ?? 1,
+      };
+      return {
+        ...node,
+        id,
+        type: "subgraph",
         position,
         data,
         style: { width: data.width, height: data.height, ...(node.style ?? {}) },

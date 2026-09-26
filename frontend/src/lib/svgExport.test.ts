@@ -68,3 +68,34 @@ describe("diagramToSvg", () => {
     expect(dashed).toContain("stroke-dasharray");
   });
 });
+
+describe("attribute escaping (security)", () => {
+  // Regression: unescaped attribute values let a crafted diagram inject a
+  // <script> into the exported/served SVG (stored XSS via the share image).
+  const evil = 'x"/><script>alert(1)</script><text fill="';
+
+  it("does not allow node textColor to inject markup", () => {
+    const svg = diagramToSvg([node("a", 0, 0, "hi", { textColor: evil })], []);
+    expect(svg).not.toContain("<script>");
+  });
+
+  it("does not allow edge color to inject markup", () => {
+    const svg = diagramToSvg([node("a", 0, 0, ""), node("b", 200, 0, "")], [
+      edge("e", "a", "b", { color: evil }),
+    ]);
+    expect(svg).not.toContain("<script>");
+  });
+
+  it("does not allow a subgraph node to inject markup", () => {
+    const sg: Node = {
+      id: "s1",
+      type: "subgraph",
+      position: { x: 0, y: 0 },
+      data: { label: "nested", diagramId: "d1", width: 220, height: 150, fill: evil, stroke: evil, textColor: evil, opacity: 1 },
+      style: { width: 220, height: 150 },
+    };
+    const svg = diagramToSvg([sg], []);
+    expect(svg).not.toContain("<script>");
+    expect(svg).toContain("nested");
+  });
+});

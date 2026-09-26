@@ -73,3 +73,24 @@ describe("serializeDoc", () => {
     expect(parsed.description).toBe("desc");
   });
 });
+
+describe("subgraph nodes (nested documents)", () => {
+  it("keeps subgraph type, diagramId and size", () => {
+    const [n] = normalizeNodes([
+      { id: "s1", type: "subgraph", position: { x: 1, y: 2 }, data: { diagramId: "abc", label: "子图", width: 300, height: 200 } },
+    ]);
+    expect(n.type).toBe("subgraph");
+    const data = n.data as Record<string, unknown>;
+    expect(data.diagramId).toBe("abc");
+    expect(data.label).toBe("子图");
+    expect(data.width).toBe(300);
+    expect((n.style as { width?: number }).width).toBe(300);
+  });
+
+  it("defaults a subgraph node without data", () => {
+    const [n] = normalizeNodes([{ id: "s2", type: "subgraph", position: { x: 0, y: 0 } }]);
+    const data = n.data as Record<string, unknown>;
+    expect(typeof data.diagramId).toBe("string");
+    expect(typeof data.width).toBe("number");
+  });
+});

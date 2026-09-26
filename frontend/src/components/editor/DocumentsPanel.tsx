@@ -23,6 +23,7 @@ import { useDocuments } from "@/lib/documents";
 import { useDiagramActions } from "@/hooks/useDiagramActions";
 import { useEditor } from "@/lib/store";
 import { useT } from "@/lib/i18n";
+import { useUi } from "@/lib/ui";
 import { promptDialog } from "@/lib/dialog";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +58,11 @@ export function DocumentsPanel({
   }, [items, query]);
 
   const onOpen = async (id: string) => {
-    if (await openDiagram(id)) onOpened?.();
+    if (await openDiagram(id)) {
+      // Opening from the list starts at the top level, not nested.
+      useUi.getState().setSubgraphPath([]);
+      onOpened?.();
+    }
   };
 
   const onNew = async () => {

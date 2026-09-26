@@ -61,6 +61,13 @@ interface UiState {
   /** Mobile diagrams drawer. */
   documentsDrawer: boolean;
   setDocumentsDrawer: (v: boolean) => void;
+  /** Nested-document navigation: ancestors to return to (breadcrumb). */
+  subgraphPath: { id: string; name: string }[];
+  setSubgraphPath: (p: { id: string; name: string }[]) => void;
+  pushSubgraph: (p: { id: string; name: string }) => void;
+  /** Diagram picker for inserting a subgraph node. */
+  subgraphPickerOpen: boolean;
+  setSubgraphPickerOpen: (v: boolean) => void;
 }
 
 /** Reads a persisted boolean preference ("0" = false, anything else = true). */
@@ -139,6 +146,11 @@ export const useUi = create<UiState>((set) => ({
   },
   documentsDrawer: false,
   setDocumentsDrawer: (v) => set({ documentsDrawer: v }),
+  subgraphPath: [],
+  setSubgraphPath: (p) => set({ subgraphPath: p }),
+  pushSubgraph: (p) => set((s) => ({ subgraphPath: [...s.subgraphPath, p] })),
+  subgraphPickerOpen: false,
+  setSubgraphPickerOpen: (v) => set({ subgraphPickerOpen: v }),
 }));
 
 /** True on phones / tablets where the editor uses drawers. */

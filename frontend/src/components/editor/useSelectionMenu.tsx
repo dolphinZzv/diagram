@@ -24,6 +24,7 @@ import {
   Sparkles,
   PackagePlus,
   Package,
+  Boxes,
   Play,
 } from "lucide-react";
 import { useEditor } from "@/lib/store";
@@ -149,6 +150,7 @@ export function useSelectionMenu() {
         "separator",
         { label: t("seq.addParticipant"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addParticipant() },
         { label: t("command.addLane"), icon: <Plus className="h-4 w-4" />, onClick: () => s.addLane() },
+        { label: t("subgraph.insert"), icon: <Boxes className="h-4 w-4" />, onClick: () => useUi.getState().setSubgraphPickerOpen(true) },
         { label: t("comp.manage"), icon: <Package className="h-4 w-4" />, onClick: () => useUi.getState().setComponentLibraryOpen(true) },
         "separator",
         { label: t("command.autoLayoutTB"), icon: <LayoutDashboard className="h-4 w-4" />, onClick: () => s.autoLayout("TB") },

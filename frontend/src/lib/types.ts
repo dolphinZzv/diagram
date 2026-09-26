@@ -98,6 +98,32 @@ export const SHAPE_LIST: ShapeType[] = [
   "text",
 ];
 
+export interface SubgraphNodeData extends Record<string, unknown> {
+  label: string;
+  /** Referenced diagram id (nested document). */
+  diagramId: string;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  textColor: string;
+  opacity: number;
+}
+
+/** A node that references another diagram (nested document / subgraph). */
+export function defaultSubgraphData(): SubgraphNodeData {
+  return {
+    label: "",
+    diagramId: "",
+    width: 220,
+    height: 150,
+    fill: "#f8fafc",
+    stroke: "#94a3b8",
+    textColor: "#0f172a",
+    opacity: 1,
+  };
+}
+
 export function defaultNodeData(shape: ShapeType = "rect"): ShapeNodeData {
   const base: ShapeNodeData = {
     label: shape === "text" ? defaultShapeLabel("text") : "",

@@ -9,7 +9,7 @@ import {
 } from "@xyflow/react";
 import { Shape } from "@/components/editor/Shape";
 import { dashArray, polyline, smoothPathThrough, type Pt } from "./geometry";
-import type { EdgeData, ShapeNodeData } from "./types";
+import type { EdgeData, ShapeNodeData, SubgraphNodeData } from "./types";
 import { canvasColors, type Theme } from "./theme";
 
 function nodeSize(n: Node): { w: number; h: number } {
@@ -108,6 +108,20 @@ function markerPath(type: EdgeData["arrowType"]): { path: string; size: number }
 }
 
 function nodeMarkup(node: Node): string {
+  if (node.type === "subgraph") {
+    const d = node.data as unknown as SubgraphNodeData;
+    const { w, h } = nodeSize(node);
+    const stroke = escapeXml(String(d.stroke ?? "#94a3b8"));
+    const fill = escapeXml(String(d.fill ?? "#f8fafc"));
+    const color = escapeXml(String(d.textColor ?? "#0f172a"));
+    const opacity = Number(d.opacity ?? 1);
+    return (
+      `<g transform="translate(${node.position.x},${node.position.y})" opacity="${opacity}">` +
+      `<rect x="0" y="0" width="${w}" height="${h}" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="2" stroke-dasharray="6 4"/>` +
+      `<text x="12" y="24" font-size="13" font-weight="bold" fill="${color}">${escapeXml(d.label || "")}</text>` +
+      `</g>`
+    );
+  }
   const data = node.data as ShapeNodeData;
   const { w, h } = nodeSize(node);
   const shape = renderToStaticMarkup(
@@ -124,7 +138,7 @@ function nodeMarkup(node: Node): string {
 
   let text = "";
   if (data.label) {
-    const fontSize = data.fontSize || 14;
+    const fontSize = Number(data.fontSize) || 14;
     const lines = wrapText(data.label, Math.max(w - 12, 20), fontSize);
     const lineHeight = fontSize * 1.25;
     const startY = h / 2 - ((lines.length - 1) * lineHeight) / 2;
@@ -136,12 +150,14 @@ function nodeMarkup(node: Node): string {
           `<tspan x="${w / 2}" y="${startY + i * lineHeight + fontSize * 0.35}">${escapeXml(ln)}</tspan>`
       )
       .join("");
-    text = `<text text-anchor="middle" font-size="${fontSize}" font-weight="${weight}" font-style="${style}" fill="${data.textColor}">${tspans}</text>`;
+    // Attribute values are escaped: they come from (possibly untrusted) diagram
+    // data and must not be able to break out of the attribute or inject elements.
+    text = `<text text-anchor="middle" font-size="${fontSize}" font-weight="${weight}" font-style="${style}" fill="${escapeXml(String(data.textColor ?? "#0f172a"))}">${tspans}</text>`;
   }
 
-  const rot = data.rotation || 0;
+  const rot = Number(data.rotation) || 0;
   const transform = `translate(${node.position.x},${node.position.y}) rotate(${rot},${w / 2},${h / 2})`;
-  const opacity = data.opacity ?? 1;
+  const opacity = Number(data.opacity ?? 1);
   return `<g transform="${transform}" opacity="${opacity}">${shape}${text}</g>`;
 }
 
@@ -191,10 +207,10 @@ function edgeMarkup(edge: Edge, src: Node, tgt: Node, idx: number): string {
     labelAt = { x: lx, y: ly };
   }
 
-  const color = data.color ?? "#475569";
-  const width = data.width ?? 2;
+  const color = String(data.color ?? "#475569");
+  const color2 = escapeXml(color);
+  const width = Number(data.width ?? 2);
   const dash = dashArray(data.lineStyle ?? "solid");
-  const color2 = color;
 
   const endMarker = markerPath(data.arrowType ?? "arrowclosed");
   const startMarker = markerPath(data.startArrowType ?? "none");
@@ -214,11 +230,11 @@ function edgeMarkup(edge: Edge, src: Node, tgt: Node, idx: number): string {
   const markerStart = startMarker ? ` marker-start="url(#${startId})"` : "";
   const markerEnd = endMarker ? ` marker-end="url(#${endId})"` : "";
   const dashAttr = dash ? ` stroke-dasharray="${dash}"` : "";
-  const path = `<path d="${d}" fill="none" stroke="${color2}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"${dashAttr}${markerStart}${markerEnd}/>`;
+  const path = `<path d="${escapeXml(d)}" fill="none" stroke="${color2}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round"${dashAttr}${markerStart}${markerEnd}/>`;
 
   let label = "";
   if (data.label) {
-    const rot = data.labelRotation || 0;
+    const rot = Number(data.labelRotation) || 0;
     label = `<text x="${labelAt.x}" y="${labelAt.y}" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="${color2}" transform="rotate(${rot},${labelAt.x},${labelAt.y})">${escapeXml(data.label)}</text>`;
   }
 
