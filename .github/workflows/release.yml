@@ -23,25 +23,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+      # Installs the Go, Node and pnpm versions declared in mise.toml.
+      - uses: jdx/mise-action@v5
       - name: Frontend install
         working-directory: frontend
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Frontend tests
         working-directory: frontend
-        run: npm run test
+        run: pnpm run test
       - name: Frontend typecheck & build
         working-directory: frontend
-        run: npm run build
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: ${{ env.GO_VERSION_FILE }}
-          cache-dependency-path: backend/go.sum
+        run: pnpm run build
       - name: Backend vet
         working-directory: backend
         run: go vet ./...
@@ -55,14 +47,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+      # Installs the Go, Node and pnpm versions declared in mise.toml.
+      - uses: jdx/mise-action@v5
       - name: Install & build
         working-directory: frontend
-        run: npm ci && npm run build
+        run: pnpm install --frozen-lockfile && pnpm run build
       - uses: actions/upload-artifact@v4
         with:
           name: web-dist
@@ -86,10 +75,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: ${{ env.GO_VERSION_FILE }}
-          cache-dependency-path: backend/go.sum
+      # Installs the Go, Node and pnpm versions declared in mise.toml.
+      - uses: jdx/mise-action@v5
 
       - name: Download frontend build
         uses: actions/download-artifact@v4

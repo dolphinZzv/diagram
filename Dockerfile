@@ -1,12 +1,13 @@
 # ---------- build stage ----------
-FROM node:20-alpine AS web
+FROM node:26-alpine AS web
 WORKDIR /app/frontend
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm install
+RUN npm install -g pnpm@12.15.0
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
-RUN npm run build
+RUN pnpm run build
 
-FROM golang:1.23-alpine AS backend
+FROM golang:1.27-alpine AS backend
 WORKDIR /app
 RUN apk add --no-cache git
 COPY backend/go.mod backend/go.sum ./backend/

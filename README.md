@@ -416,7 +416,7 @@ http://localhost:8080/mcp
 cd backend && go test ./...
 
 # 前端
-cd frontend && npm ci && npm run test
+cd frontend && pnpm install --frozen-lockfile && pnpm run test
 ```
 
 覆盖内容：

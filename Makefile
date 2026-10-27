@@ -16,7 +16,7 @@ help:
 	@echo "make clean      - 清理构建产物"
 
 web:
-	cd frontend && npm install && npm run build
+	cd frontend && pnpm install && pnpm run build
 
 backend: web
 	rm -rf backend/dist && cp -r frontend/dist backend/dist
@@ -30,7 +30,7 @@ run: build
 
 dev:
 	@echo "后端: http://localhost:8080  前端: http://localhost:5173"
-	@(cd backend && go run . &) ; cd frontend && npm run dev
+	@(cd backend && go run . &) ; cd frontend && pnpm run dev
 
 clean:
 	rm -rf bin frontend/dist backend/dist
@@ -38,4 +38,4 @@ clean:
 
 tidy:
 	cd backend && go mod tidy
-	cd frontend && npm install
+	cd frontend && pnpm install

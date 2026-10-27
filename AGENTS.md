@@ -40,7 +40,7 @@ make run
 
 # 提交前必须全绿：
 cd frontend && npx tsc --noEmit          # 类型检查（tsconfig 开了 noUnusedLocals/noUnusedParameters）
-cd frontend && npm run test              # vitest（源码旁 *.test.ts(x)）
+cd frontend && pnpm run test              # vitest（源码旁 *.test.ts(x)）
 cd backend  && go test ./...             # Go 测试
 ```
 
@@ -75,7 +75,7 @@ cd backend  && go test ./...             # Go 测试
 
 ## 发布流程
 
-1. 确保 `go test ./...` 与前端 `npm run test`、`npx tsc --noEmit` 全绿。
+1. 确保 `go test ./...` 与前端 `pnpm run test`、`pnpm exec tsc --noEmit` 全绿。
 2. 提交（建议按功能拆分），例如：`feat(v0.17): ...`。
 3. 打标签并推送，触发 GitHub Actions 交叉编译 6 个平台并创建 Release：
 
